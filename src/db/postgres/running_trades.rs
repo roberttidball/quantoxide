@@ -11,7 +11,7 @@ use crate::trade::TradeTrailingStoploss;
 use super::super::{
     error::{DbError, Result},
     models::RunningTrade,
-    repositories::RunningTradesRepository,
+    repositories::{RunningTradesRepository, RunningTradesRepositoryRead},
 };
 
 pub(crate) struct PgRunningTradesRepo {
@@ -29,29 +29,7 @@ impl PgRunningTradesRepo {
 }
 
 #[async_trait]
-impl RunningTradesRepository for PgRunningTradesRepo {
-    async fn add_running_trade(
-        &self,
-        account_id: Uuid,
-        trade_id: Uuid,
-        trailing_stoploss: Option<TradeTrailingStoploss>,
-    ) -> Result<()> {
-        sqlx::query!(
-            r#"
-                INSERT INTO running_trades (account_id, trade_id, trailing_stoploss)
-                VALUES ($1, $2, $3)
-            "#,
-            account_id,
-            trade_id,
-            trailing_stoploss.map(|tsl| tsl.as_f64()),
-        )
-        .execute(self.pool())
-        .await
-        .map_err(DbError::Query)?;
-
-        Ok(())
-    }
-
+impl RunningTradesRepositoryRead for PgRunningTradesRepo {
     async fn get_running_trades_map(
         &self,
         account_id: Uuid,
@@ -90,6 +68,31 @@ impl RunningTradesRepository for PgRunningTradesRepo {
         }
 
         Ok(running_trades_map)
+    }
+}
+
+#[async_trait]
+impl RunningTradesRepository for PgRunningTradesRepo {
+    async fn add_running_trade(
+        &self,
+        account_id: Uuid,
+        trade_id: Uuid,
+        trailing_stoploss: Option<TradeTrailingStoploss>,
+    ) -> Result<()> {
+        sqlx::query!(
+            r#"
+                INSERT INTO running_trades (account_id, trade_id, trailing_stoploss)
+                VALUES ($1, $2, $3)
+            "#,
+            account_id,
+            trade_id,
+            trailing_stoploss.map(|tsl| tsl.as_f64()),
+        )
+        .execute(self.pool())
+        .await
+        .map_err(DbError::Query)?;
+
+        Ok(())
     }
 
     async fn remove_running_trades(&self, account_id: Uuid, trade_ids: &[Uuid]) -> Result<()> {

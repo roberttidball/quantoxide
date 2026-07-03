@@ -16,6 +16,7 @@ mod repositories;
 
 pub use repositories::{
     FundingSettlementsRepositoryRead, OhlcCandlesRepositoryRead, PriceTicksRepositoryRead,
+    RunningTradesRepositoryRead,
 };
 
 use error::{DbError, Result};
@@ -184,5 +185,21 @@ impl Database {
     /// ```
     pub fn funding_settlements(&self) -> &(dyn FundingSettlementsRepositoryRead + '_) {
         self.funding_settlements.as_ref()
+    }
+
+    /// Returns read-only access to running trade recovery data.
+    ///
+    /// ```rust,no_run
+    /// # async fn example(db: &quantoxide::Database) -> Result<(), Box<dyn std::error::Error>> {
+    /// let account_id = uuid::Uuid::new_v4();
+    /// let running_trades = db
+    ///     .running_trades()
+    ///     .get_running_trades_map(account_id)
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn running_trades(&self) -> &(dyn RunningTradesRepositoryRead + '_) {
+        self.running_trades.as_ref()
     }
 }

@@ -55,18 +55,34 @@ pub(crate) trait PriceTicksRepository: PriceTicksRepositoryRead {
 }
 
 #[async_trait]
-pub(crate) trait RunningTradesRepository: Send + Sync {
+/// Read-only running trades repository API.
+pub trait RunningTradesRepositoryRead: Send + Sync {
+    /// Returns running trades for `account_id`, keyed by trade ID.
+    ///
+    /// ```rust,no_run
+    /// # async fn example(db: &quantoxide::Database) -> Result<(), Box<dyn std::error::Error>> {
+    /// let account_id = uuid::Uuid::new_v4();
+    /// let running_trades = db
+    ///     .running_trades()
+    ///     .get_running_trades_map(account_id)
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn get_running_trades_map(
+        &self,
+        account_id: Uuid,
+    ) -> Result<HashMap<Uuid, Option<TradeTrailingStoploss>>>;
+}
+
+#[async_trait]
+pub(crate) trait RunningTradesRepository: RunningTradesRepositoryRead {
     async fn add_running_trade(
         &self,
         account_id: Uuid,
         trade_id: Uuid,
         trailing_stoploss: Option<TradeTrailingStoploss>,
     ) -> Result<()>;
-
-    async fn get_running_trades_map(
-        &self,
-        account_id: Uuid,
-    ) -> Result<HashMap<Uuid, Option<TradeTrailingStoploss>>>;
 
     async fn remove_running_trades(&self, account_id: Uuid, trade_ids: &[Uuid]) -> Result<()>;
 }

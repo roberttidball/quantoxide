@@ -14,7 +14,7 @@ pub(crate) const CANDLE_STABLE_AGE: Duration = Duration::hours(1);
 mod postgres;
 mod repositories;
 
-pub use repositories::OhlcCandlesRepositoryRead;
+pub use repositories::{OhlcCandlesRepositoryRead, PriceTicksRepositoryRead};
 
 use error::{DbError, Result};
 use postgres::{
@@ -154,5 +154,17 @@ impl Database {
     /// ```
     pub fn ohlc_candles(&self) -> &(dyn OhlcCandlesRepositoryRead + '_) {
         self.ohlc_candles.as_ref()
+    }
+
+    /// Returns read-only access to price tick data.
+    ///
+    /// ```rust,no_run
+    /// # async fn example(db: &quantoxide::Database) -> Result<(), Box<dyn std::error::Error>> {
+    /// let latest = db.price_ticks().get_latest_entry().await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn price_ticks(&self) -> &(dyn PriceTicksRepositoryRead + '_) {
+        self.price_ticks.as_ref()
     }
 }

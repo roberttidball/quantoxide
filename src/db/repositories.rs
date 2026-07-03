@@ -14,19 +14,42 @@ use super::{
 };
 
 #[async_trait]
-pub(crate) trait PriceTicksRepository: Send + Sync {
+/// Read-only price tick repository API.
+pub trait PriceTicksRepositoryRead: Send + Sync {
+    /// Returns the latest known price entry as `(time, price)`, or `None` when no price data exists.
+    ///
+    /// ```rust,no_run
+    /// # async fn example(db: &quantoxide::Database) -> Result<(), Box<dyn std::error::Error>> {
+    /// let latest = db.price_ticks().get_latest_entry().await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn get_latest_entry(&self) -> Result<Option<(DateTime<Utc>, f64)>>;
+
+    /// Returns the price range since `start` as `(min_price, max_price, latest_time, latest_price)`.
+    ///
+    /// ```rust,no_run
+    /// # async fn example(db: &quantoxide::Database) -> Result<(), Box<dyn std::error::Error>> {
+    /// use chrono::{Duration, Utc};
+    ///
+    /// let start = Utc::now() - Duration::hours(24);
+    /// let range = db.price_ticks().get_price_range_from(start).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn get_price_range_from(
+        &self,
+        start: DateTime<Utc>,
+    ) -> Result<Option<(f64, f64, DateTime<Utc>, f64)>>;
+}
+
+#[async_trait]
+pub(crate) trait PriceTicksRepository: PriceTicksRepositoryRead {
     /// Adds multiple price ticks to the database in a single batch operation.
     /// Uses INSERT ON CONFLICT DO NOTHING to avoid duplicate entries.
     ///
     /// Returns only the ticks that were successfully inserted (new entries).
     async fn add_ticks(&self, ticks: &[LastPrice]) -> Result<Vec<PriceTickRow>>;
-
-    async fn get_latest_entry(&self) -> Result<Option<(DateTime<Utc>, f64)>>;
-
-    async fn get_price_range_from(
-        &self,
-        start: DateTime<Utc>,
-    ) -> Result<Option<(f64, f64, DateTime<Utc>, f64)>>;
 
     async fn remove_ticks(&self, before: DateTime<Utc>) -> Result<()>;
 }

@@ -25,7 +25,7 @@ use repositories::{
 };
 
 lazy_static! {
-    /// Default PostgreSQL pool options used by [`Database::new`].
+    /// Default [`PgPoolOptions`] used by [`Database::new`].
     pub static ref DEFAULT_PG_POOL_OPTIONS: PgPoolOptions = PgPoolOptions::new()
         .max_connections(10)
         .acquire_timeout(time::Duration::from_secs(60));
@@ -57,15 +57,49 @@ pub struct Database {
 }
 
 impl Database {
-    /// Creates a new database instance and runs migrations.
+    /// Creates a new database instance with default pool options and runs migrations.
     ///
     /// Establishes a connection pool to the PostgreSQL database and automatically applies any
     /// pending migrations. Returns an error if the connection fails or migrations cannot be
     /// applied.
+    ///
+    /// The default PostgreSQL pool currently allows up to 10 connections and waits up to 60
+    /// seconds to acquire a connection.
+    ///
+    /// ```rust,no_run
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// use quantoxide::Database;
+    ///
+    /// let db_url = std::env::var("POSTGRES_DB_URL")?;
+    /// let db = Database::new(&db_url).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn new(postgres_db_url: &str) -> Result<Arc<Self>> {
         Self::with_pool_options(postgres_db_url, DEFAULT_PG_POOL_OPTIONS.clone()).await
     }
 
+    /// Creates a new database instance with caller-provided pool options and runs migrations.
+    ///
+    /// Use this constructor when the default pool size or acquire timeout is not appropriate for
+    /// the workload or host. [`PgPoolOptions`] is re-exported by this crate so consumers can
+    /// configure the pool without depending on `sqlx` directly.
+    ///
+    /// ```rust,no_run
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// use std::time::Duration;
+    ///
+    /// use quantoxide::{Database, PgPoolOptions};
+    ///
+    /// let db_url = std::env::var("POSTGRES_DB_URL")?;
+    /// let pool_options = PgPoolOptions::new()
+    ///     .max_connections(20)
+    ///     .acquire_timeout(Duration::from_secs(120));
+    ///
+    /// let db = Database::with_pool_options(&db_url, pool_options).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn with_pool_options(
         database_url: &str,
         pool_options: impl Into<DatabasePoolOptions>,

@@ -17,7 +17,7 @@ use crate::{
 use super::super::{
     error::{DbError, Result},
     models::FundingSettlementRow,
-    repositories::FundingSettlementsRepository,
+    repositories::{FundingSettlementsRepository, FundingSettlementsRepositoryRead},
 };
 
 pub(crate) struct PgFundingSettlementsRepo {
@@ -89,42 +89,7 @@ impl PgFundingSettlementsRepo {
 }
 
 #[async_trait]
-impl FundingSettlementsRepository for PgFundingSettlementsRepo {
-    async fn add_settlements(&self, settlements: &[FundingSettlement]) -> Result<()> {
-        if settlements.is_empty() {
-            return Ok(());
-        }
-
-        let mut ids = Vec::with_capacity(settlements.len());
-        let mut times = Vec::with_capacity(settlements.len());
-        let mut fixing_prices = Vec::with_capacity(settlements.len());
-        let mut funding_rates = Vec::with_capacity(settlements.len());
-
-        for settlement in settlements {
-            ids.push(settlement.id());
-            times.push(settlement.time());
-            fixing_prices.push(settlement.fixing_price());
-            funding_rates.push(settlement.funding_rate());
-        }
-
-        sqlx::query!(
-            r#"
-                INSERT INTO funding_settlements (id, time, fixing_price, funding_rate)
-                SELECT * FROM unnest($1::uuid[], $2::timestamptz[], $3::float8[], $4::float8[])
-                ON CONFLICT (time) DO NOTHING
-            "#,
-            &ids,
-            &times,
-            &fixing_prices,
-            &funding_rates,
-        )
-        .execute(self.pool())
-        .await
-        .map_err(DbError::Query)?;
-
-        Ok(())
-    }
-
+impl FundingSettlementsRepositoryRead for PgFundingSettlementsRepo {
     async fn get_settlements(
         &self,
         from: DateTime<Utc>,
@@ -236,5 +201,43 @@ impl FundingSettlementsRepository for PgFundingSettlementsRepo {
         }
 
         Ok(combined)
+    }
+}
+
+#[async_trait]
+impl FundingSettlementsRepository for PgFundingSettlementsRepo {
+    async fn add_settlements(&self, settlements: &[FundingSettlement]) -> Result<()> {
+        if settlements.is_empty() {
+            return Ok(());
+        }
+
+        let mut ids = Vec::with_capacity(settlements.len());
+        let mut times = Vec::with_capacity(settlements.len());
+        let mut fixing_prices = Vec::with_capacity(settlements.len());
+        let mut funding_rates = Vec::with_capacity(settlements.len());
+
+        for settlement in settlements {
+            ids.push(settlement.id());
+            times.push(settlement.time());
+            fixing_prices.push(settlement.fixing_price());
+            funding_rates.push(settlement.funding_rate());
+        }
+
+        sqlx::query!(
+            r#"
+                INSERT INTO funding_settlements (id, time, fixing_price, funding_rate)
+                SELECT * FROM unnest($1::uuid[], $2::timestamptz[], $3::float8[], $4::float8[])
+                ON CONFLICT (time) DO NOTHING
+            "#,
+            &ids,
+            &times,
+            &fixing_prices,
+            &funding_rates,
+        )
+        .execute(self.pool())
+        .await
+        .map_err(DbError::Query)?;
+
+        Ok(())
     }
 }

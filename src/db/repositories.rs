@@ -166,32 +166,83 @@ pub(crate) trait OhlcCandlesRepository: OhlcCandlesRepositoryRead {
 }
 
 #[async_trait]
-pub(crate) trait FundingSettlementsRepository: Send + Sync {
-    /// Adds multiple funding settlements to the database. Idempotent.
-    async fn add_settlements(&self, settlements: &[FundingSettlement]) -> Result<()>;
-
+/// Read-only funding settlements repository API.
+pub trait FundingSettlementsRepositoryRead: Send + Sync {
     /// Retrieves funding settlements within the specified time range, ordered by time ASC.
+    ///
+    /// ```rust,no_run
+    /// # async fn example(db: &quantoxide::Database) -> Result<(), Box<dyn std::error::Error>> {
+    /// use chrono::{Duration, Utc};
+    ///
+    /// let to = Utc::now();
+    /// let from = to - Duration::days(30);
+    ///
+    /// let settlements = db.funding_settlements().get_settlements(from, to).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     async fn get_settlements(
         &self,
         from: DateTime<Utc>,
         to: DateTime<Utc>,
     ) -> Result<Vec<FundingSettlementRow>>;
 
-    /// Returns the earliest settlement time in the database.
+    /// Returns the earliest settlement time in the database, or `None` when no settlements exist.
+    ///
+    /// ```rust,no_run
+    /// # async fn example(db: &quantoxide::Database) -> Result<(), Box<dyn std::error::Error>> {
+    /// let earliest = db
+    ///     .funding_settlements()
+    ///     .get_earliest_settlement_time()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     async fn get_earliest_settlement_time(&self) -> Result<Option<DateTime<Utc>>>;
 
-    /// Returns the latest settlement time in the database.
+    /// Returns the latest settlement time in the database, or `None` when no settlements exist.
+    ///
+    /// ```rust,no_run
+    /// # async fn example(db: &quantoxide::Database) -> Result<(), Box<dyn std::error::Error>> {
+    /// let latest = db
+    ///     .funding_settlements()
+    ///     .get_latest_settlement_time()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     async fn get_latest_settlement_time(&self) -> Result<Option<DateTime<Utc>>>;
 
-    /// Returns the times of missing settlements on the funding settlement grid between the given
-    /// bounds, ordered by time ASC. Handles all three LNM funding settlement grid phases
-    /// transitions internally:
+    /// Returns missing settlement times on the funding settlement grid, ordered by time ASC.
+    ///
+    /// Handles all three LNM funding settlement grid phases internally:
     /// + Phase A ({08} UTC, 24h)
     /// + Phase B ({04, 12, 20} UTC, 8h)
     /// + Phase C ({00, 08, 16} UTC, 8h)
+    ///
+    /// ```rust,no_run
+    /// # async fn example(db: &quantoxide::Database) -> Result<(), Box<dyn std::error::Error>> {
+    /// use chrono::{Duration, Utc};
+    ///
+    /// let to = Utc::now();
+    /// let from = to - Duration::days(30);
+    ///
+    /// let missing = db
+    ///     .funding_settlements()
+    ///     .get_missing_settlement_times(from, to)
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     async fn get_missing_settlement_times(
         &self,
         from: DateTime<Utc>,
         to: DateTime<Utc>,
     ) -> Result<Vec<DateTime<Utc>>>;
+}
+
+#[async_trait]
+pub(crate) trait FundingSettlementsRepository: FundingSettlementsRepositoryRead {
+    /// Adds multiple funding settlements to the database. Idempotent.
+    async fn add_settlements(&self, settlements: &[FundingSettlement]) -> Result<()>;
 }

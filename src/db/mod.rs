@@ -14,7 +14,9 @@ pub(crate) const CANDLE_STABLE_AGE: Duration = Duration::hours(1);
 mod postgres;
 mod repositories;
 
-pub use repositories::{OhlcCandlesRepositoryRead, PriceTicksRepositoryRead};
+pub use repositories::{
+    FundingSettlementsRepositoryRead, OhlcCandlesRepositoryRead, PriceTicksRepositoryRead,
+};
 
 use error::{DbError, Result};
 use postgres::{
@@ -166,5 +168,21 @@ impl Database {
     /// ```
     pub fn price_ticks(&self) -> &(dyn PriceTicksRepositoryRead + '_) {
         self.price_ticks.as_ref()
+    }
+
+    /// Returns read-only access to funding settlement data.
+    ///
+    /// ```rust,no_run
+    /// # async fn example(db: &quantoxide::Database) -> Result<(), Box<dyn std::error::Error>> {
+    /// use chrono::{Duration, Utc};
+    ///
+    /// let to = Utc::now();
+    /// let from = to - Duration::days(30);
+    /// let settlements = db.funding_settlements().get_settlements(from, to).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn funding_settlements(&self) -> &(dyn FundingSettlementsRepositoryRead + '_) {
+        self.funding_settlements.as_ref()
     }
 }

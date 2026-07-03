@@ -12,7 +12,7 @@ use super::super::{
     CANDLE_STABLE_AGE,
     error::{DbError, Result},
     models::OhlcCandleRow,
-    repositories::OhlcCandlesRepository,
+    repositories::{OhlcCandlesRepository, OhlcCandlesRepositoryRead},
 };
 
 pub(crate) struct PgOhlcCandlesRepo {
@@ -34,135 +34,7 @@ impl PgOhlcCandlesRepo {
 }
 
 #[async_trait]
-impl OhlcCandlesRepository for PgOhlcCandlesRepo {
-    async fn add_candles(
-        &self,
-        before_candle_time: Option<DateTime<Utc>>,
-        new_candles: &[OhlcCandle],
-    ) -> Result<()> {
-        if new_candles.is_empty() {
-            return Ok(());
-        }
-
-        for window in new_candles.windows(2) {
-            let [current, next] = window else {
-                unreachable!()
-            };
-
-            if current.time().second() != 0 || current.time().nanosecond() != 0 {
-                return Err(DbError::NewDbCandlesTimesNotRoundedToMinute);
-            }
-
-            if next.time() >= current.time() {
-                return Err(DbError::NewDbCandlesNotOrderedByTimeDesc {
-                    inconsistency_at: next.time(),
-                });
-            }
-        }
-
-        let period_start = new_candles.last().expect("not empty").time();
-
-        // Validate the last candle's time (also handles single candles)
-        if period_start.second() != 0 || period_start.nanosecond() != 0 {
-            return Err(DbError::NewDbCandlesTimesNotRoundedToMinute);
-        }
-
-        let mut tx = self.start_transaction().await?;
-
-        // Clear the gap flag on the candle immediately after the period (the `to` boundary that
-        // came with the download range). This is unrelated to the batch below — the gap marker
-        // lives on an existing stable row whose values we're not touching.
-        if let Some(before_candle_time) = before_candle_time {
-            sqlx::query!(
-                "UPDATE ohlc_candles SET gap = false WHERE time = $1",
-                before_candle_time
-            )
-            .execute(&mut *tx)
-            .await
-            .map_err(DbError::Query)?;
-        }
-
-        // Gap-marker placement: if the candle immediately before the batch (`period_start - 1min`)
-        // is not stable, flag the batch's oldest candle with `gap=true`. This deliberately checks
-        // `stable = true`, not just existence — an unstable predecessor (e.g. leftover from a
-        // previous sync session's tail) must trigger a gap so that `get_gaps` picks it up and the
-        // unstable region gets re-fetched. This is the only mechanism that detects stale unstable
-        // tails in live mode, which does not run `flag_missing_candles`.
-        let before_period_time = period_start - Duration::minutes(1);
-        let before_period_candle_exists = sqlx::query_scalar!(
-            "SELECT EXISTS(SELECT 1 FROM ohlc_candles WHERE time = $1 AND stable = true)",
-            before_period_time
-        )
-        .fetch_one(&mut *tx)
-        .await
-        .map_err(DbError::Query)?
-        .unwrap_or(false);
-
-        let mut times = Vec::with_capacity(new_candles.len());
-        let mut opens = Vec::with_capacity(new_candles.len());
-        let mut highs = Vec::with_capacity(new_candles.len());
-        let mut lows = Vec::with_capacity(new_candles.len());
-        let mut closes = Vec::with_capacity(new_candles.len());
-        let mut volumes = Vec::with_capacity(new_candles.len());
-
-        for candle in new_candles {
-            times.push(candle.time());
-            opens.push(candle.open().as_f64());
-            highs.push(candle.high().as_f64());
-            lows.push(candle.low().as_f64());
-            closes.push(candle.close().as_f64());
-            volumes.push(candle.volume() as i64);
-        }
-
-        let mut gaps: Vec<bool> = vec![false; new_candles.len()];
-        gaps[new_candles.len() - 1] = !before_period_candle_exists;
-
-        let stable_cutoff = Utc::now() - CANDLE_STABLE_AGE;
-        let stables: Vec<bool> = new_candles
-            .iter()
-            .map(|c| c.time() <= stable_cutoff)
-            .collect();
-
-        // Batch upsert all candles. The WHERE clause on DO UPDATE prevents the updated_at
-        // trigger from firing when no values actually changed.
-        sqlx::query!(
-                r#"
-                    INSERT INTO ohlc_candles (time, open, high, low, close, volume, gap, stable)
-                    SELECT * FROM unnest($1::timestamptz[], $2::float8[], $3::float8[], $4::float8[], $5::float8[], $6::bigint[], $7::bool[], $8::bool[])
-                    ON CONFLICT (time) DO UPDATE
-                    SET open = EXCLUDED.open,
-                        high = EXCLUDED.high,
-                        low = EXCLUDED.low,
-                        close = EXCLUDED.close,
-                        volume = EXCLUDED.volume,
-                        gap = EXCLUDED.gap,
-                        stable = EXCLUDED.stable
-                    WHERE ohlc_candles.open != EXCLUDED.open
-                       OR ohlc_candles.high != EXCLUDED.high
-                       OR ohlc_candles.low != EXCLUDED.low
-                       OR ohlc_candles.close != EXCLUDED.close
-                       OR ohlc_candles.volume != EXCLUDED.volume
-                       OR ohlc_candles.gap != EXCLUDED.gap
-                       OR ohlc_candles.stable != EXCLUDED.stable
-                "#,
-                &times,
-                &opens,
-                &highs,
-                &lows,
-                &closes,
-                &volumes,
-                &gaps,
-                &stables
-            )
-            .execute(&mut *tx)
-            .await
-            .map_err(DbError::Query)?;
-
-        tx.commit().await.map_err(DbError::TransactionCommit)?;
-
-        Ok(())
-    }
-
+impl OhlcCandlesRepositoryRead for PgOhlcCandlesRepo {
     async fn get_candles(
         &self,
         from: DateTime<Utc>,
@@ -323,14 +195,6 @@ impl OhlcCandlesRepository for PgOhlcCandlesRepo {
         Ok(rows)
     }
 
-    async fn remove_gap_flag(&self, time: DateTime<Utc>) -> Result<()> {
-        sqlx::query!("UPDATE ohlc_candles SET gap = false WHERE time = $1", time)
-            .execute(self.pool())
-            .await
-            .map_err(DbError::Query)?;
-        Ok(())
-    }
-
     async fn get_earliest_candle_time(&self) -> Result<Option<DateTime<Utc>>> {
         struct OhlcCandlePartial {
             pub time: DateTime<Utc>,
@@ -404,6 +268,145 @@ impl OhlcCandlesRepository for PgOhlcCandlesRepo {
         .collect();
 
         Ok(gaps)
+    }
+}
+
+#[async_trait]
+impl OhlcCandlesRepository for PgOhlcCandlesRepo {
+    async fn add_candles(
+        &self,
+        before_candle_time: Option<DateTime<Utc>>,
+        new_candles: &[OhlcCandle],
+    ) -> Result<()> {
+        if new_candles.is_empty() {
+            return Ok(());
+        }
+
+        for window in new_candles.windows(2) {
+            let [current, next] = window else {
+                unreachable!()
+            };
+
+            if current.time().second() != 0 || current.time().nanosecond() != 0 {
+                return Err(DbError::NewDbCandlesTimesNotRoundedToMinute);
+            }
+
+            if next.time() >= current.time() {
+                return Err(DbError::NewDbCandlesNotOrderedByTimeDesc {
+                    inconsistency_at: next.time(),
+                });
+            }
+        }
+
+        let period_start = new_candles.last().expect("not empty").time();
+
+        // Validate the last candle's time (also handles single candles)
+        if period_start.second() != 0 || period_start.nanosecond() != 0 {
+            return Err(DbError::NewDbCandlesTimesNotRoundedToMinute);
+        }
+
+        let mut tx = self.start_transaction().await?;
+
+        // Clear the gap flag on the candle immediately after the period (the `to` boundary that
+        // came with the download range). This is unrelated to the batch below — the gap marker
+        // lives on an existing stable row whose values we're not touching.
+        if let Some(before_candle_time) = before_candle_time {
+            sqlx::query!(
+                "UPDATE ohlc_candles SET gap = false WHERE time = $1",
+                before_candle_time
+            )
+            .execute(&mut *tx)
+            .await
+            .map_err(DbError::Query)?;
+        }
+
+        // Gap-marker placement: if the candle immediately before the batch (`period_start - 1min`)
+        // is not stable, flag the batch's oldest candle with `gap=true`. This deliberately checks
+        // `stable = true`, not just existence — an unstable predecessor (e.g. leftover from a
+        // previous sync session's tail) must trigger a gap so that `get_gaps` picks it up and the
+        // unstable region gets re-fetched. This is the only mechanism that detects stale unstable
+        // tails in live mode, which does not run `flag_missing_candles`.
+        let before_period_time = period_start - Duration::minutes(1);
+        let before_period_candle_exists = sqlx::query_scalar!(
+            "SELECT EXISTS(SELECT 1 FROM ohlc_candles WHERE time = $1 AND stable = true)",
+            before_period_time
+        )
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(DbError::Query)?
+        .unwrap_or(false);
+
+        let mut times = Vec::with_capacity(new_candles.len());
+        let mut opens = Vec::with_capacity(new_candles.len());
+        let mut highs = Vec::with_capacity(new_candles.len());
+        let mut lows = Vec::with_capacity(new_candles.len());
+        let mut closes = Vec::with_capacity(new_candles.len());
+        let mut volumes = Vec::with_capacity(new_candles.len());
+
+        for candle in new_candles {
+            times.push(candle.time());
+            opens.push(candle.open().as_f64());
+            highs.push(candle.high().as_f64());
+            lows.push(candle.low().as_f64());
+            closes.push(candle.close().as_f64());
+            volumes.push(candle.volume() as i64);
+        }
+
+        let mut gaps: Vec<bool> = vec![false; new_candles.len()];
+        gaps[new_candles.len() - 1] = !before_period_candle_exists;
+
+        let stable_cutoff = Utc::now() - CANDLE_STABLE_AGE;
+        let stables: Vec<bool> = new_candles
+            .iter()
+            .map(|c| c.time() <= stable_cutoff)
+            .collect();
+
+        // Batch upsert all candles. The WHERE clause on DO UPDATE prevents the updated_at
+        // trigger from firing when no values actually changed.
+        sqlx::query!(
+                r#"
+                    INSERT INTO ohlc_candles (time, open, high, low, close, volume, gap, stable)
+                    SELECT * FROM unnest($1::timestamptz[], $2::float8[], $3::float8[], $4::float8[], $5::float8[], $6::bigint[], $7::bool[], $8::bool[])
+                    ON CONFLICT (time) DO UPDATE
+                    SET open = EXCLUDED.open,
+                        high = EXCLUDED.high,
+                        low = EXCLUDED.low,
+                        close = EXCLUDED.close,
+                        volume = EXCLUDED.volume,
+                        gap = EXCLUDED.gap,
+                        stable = EXCLUDED.stable
+                    WHERE ohlc_candles.open != EXCLUDED.open
+                       OR ohlc_candles.high != EXCLUDED.high
+                       OR ohlc_candles.low != EXCLUDED.low
+                       OR ohlc_candles.close != EXCLUDED.close
+                       OR ohlc_candles.volume != EXCLUDED.volume
+                       OR ohlc_candles.gap != EXCLUDED.gap
+                       OR ohlc_candles.stable != EXCLUDED.stable
+                "#,
+                &times,
+                &opens,
+                &highs,
+                &lows,
+                &closes,
+                &volumes,
+                &gaps,
+                &stables
+            )
+            .execute(&mut *tx)
+            .await
+            .map_err(DbError::Query)?;
+
+        tx.commit().await.map_err(DbError::TransactionCommit)?;
+
+        Ok(())
+    }
+
+    async fn remove_gap_flag(&self, time: DateTime<Utc>) -> Result<()> {
+        sqlx::query!("UPDATE ohlc_candles SET gap = false WHERE time = $1", time)
+            .execute(self.pool())
+            .await
+            .map_err(DbError::Query)?;
+        Ok(())
     }
 
     // Identifies and flags gaps in OHLC candle data within a specified time range.

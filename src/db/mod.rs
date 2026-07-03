@@ -14,6 +14,8 @@ pub(crate) const CANDLE_STABLE_AGE: Duration = Duration::hours(1);
 mod postgres;
 mod repositories;
 
+pub use repositories::OhlcCandlesRepositoryRead;
+
 use error::{DbError, Result};
 use postgres::{
     funding_settlements::PgFundingSettlementsRepo, ohlc_candles::PgOhlcCandlesRepo,
@@ -130,5 +132,27 @@ impl Database {
                 }))
             }
         }
+    }
+
+    /// Returns read-only access to OHLC candle data.
+    ///
+    /// ```rust,no_run
+    /// # async fn example(db: &quantoxide::Database) -> Result<(), Box<dyn std::error::Error>> {
+    /// use chrono::{Utc, Duration};
+    /// use quantoxide::models::OhlcResolution;
+    ///
+    /// let to = Utc::now();
+    /// let from = to - Duration::hours(24);
+    /// let resolution = OhlcResolution::OneHour;
+    ///
+    /// let candles = db
+    ///     .ohlc_candles()
+    ///     .get_candles_consolidated(from, to, resolution)
+    ///     .await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn ohlc_candles(&self) -> &(dyn OhlcCandlesRepositoryRead + '_) {
+        self.ohlc_candles.as_ref()
     }
 }

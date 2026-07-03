@@ -26,7 +26,7 @@ pub mod trade;
 pub mod tui;
 mod util;
 
-pub use db::{DEFAULT_PG_POOL_OPTIONS, Database, DatabasePoolOptions};
+pub use db::{DEFAULT_PG_POOL_OPTIONS, Database, DatabasePoolOptions, OhlcCandlesRepositoryRead};
 pub use sqlx::postgres::PgPoolOptions;
 
 /// Error types returned by `quantoxide`.

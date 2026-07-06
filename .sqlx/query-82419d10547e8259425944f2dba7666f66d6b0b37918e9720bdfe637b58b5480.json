@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT time as \"time!: DateTime<Utc>\"\n                FROM funding_settlements\n                ORDER BY time ASC\n                LIMIT 1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "time!: DateTime<Utc>",
+        "ordinal": 0,
+        "type_info": "Datetime",
+        "origin": {
+          "Table": {
+            "table": "funding_settlements",
+            "name": "time"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "82419d10547e8259425944f2dba7666f66d6b0b37918e9720bdfe637b58b5480"
+}

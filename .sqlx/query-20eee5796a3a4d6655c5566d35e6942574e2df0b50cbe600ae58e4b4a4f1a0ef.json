@@ -1,0 +1,74 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT\n                    id as \"id!: uuid::Uuid\",\n                    time as \"time!: DateTime<Utc>\",\n                    fixing_price as \"fixing_price!: f64\",\n                    funding_rate as \"funding_rate!: f64\",\n                    created_at as \"created_at!: DateTime<Utc>\"\n                FROM funding_settlements\n                WHERE time >= ?1 AND time <= ?2\n                ORDER BY time ASC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: uuid::Uuid",
+        "ordinal": 0,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "funding_settlements",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "time!: DateTime<Utc>",
+        "ordinal": 1,
+        "type_info": "Datetime",
+        "origin": {
+          "Table": {
+            "table": "funding_settlements",
+            "name": "time"
+          }
+        }
+      },
+      {
+        "name": "fixing_price!: f64",
+        "ordinal": 2,
+        "type_info": "Float",
+        "origin": {
+          "Table": {
+            "table": "funding_settlements",
+            "name": "fixing_price"
+          }
+        }
+      },
+      {
+        "name": "funding_rate!: f64",
+        "ordinal": 3,
+        "type_info": "Float",
+        "origin": {
+          "Table": {
+            "table": "funding_settlements",
+            "name": "funding_rate"
+          }
+        }
+      },
+      {
+        "name": "created_at!: DateTime<Utc>",
+        "ordinal": 4,
+        "type_info": "Datetime",
+        "origin": {
+          "Table": {
+            "table": "funding_settlements",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "20eee5796a3a4d6655c5566d35e6942574e2df0b50cbe600ae58e4b4a4f1a0ef"
+}

@@ -27,13 +27,19 @@ pub mod tui;
 mod util;
 
 #[cfg(feature = "postgres")]
-pub use db::{DEFAULT_PG_POOL_OPTIONS, DatabasePoolOptions};
+pub use db::DEFAULT_PG_POOL_OPTIONS;
+#[cfg(feature = "sqlite")]
+pub use db::DEFAULT_SQLITE_POOL_OPTIONS;
+#[cfg(any(feature = "postgres", feature = "sqlite"))]
+pub use db::DatabasePoolOptions;
 pub use db::{
     Database, FundingSettlementsRepositoryRead, OhlcCandlesRepositoryRead,
     PriceTicksRepositoryRead, RunningTradesRepositoryRead,
 };
 #[cfg(feature = "postgres")]
 pub use sqlx::postgres::PgPoolOptions;
+#[cfg(feature = "sqlite")]
+pub use sqlx::sqlite::SqlitePoolOptions;
 
 /// Error types returned by `quantoxide`.
 pub mod error {

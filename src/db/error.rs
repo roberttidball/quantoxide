@@ -21,6 +21,9 @@ pub enum DbError {
     #[error("Transaction commit error: {0}")]
     TransactionCommit(sqlx::Error),
 
+    #[error("Unsupported database URL scheme or disabled backend feature: {0}")]
+    UnsupportedDatabaseUrl(String),
+
     #[error("Unexpected query result: {0}")]
     UnexpectedQueryResult(String),
 

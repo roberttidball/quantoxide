@@ -5,79 +5,10 @@ use chrono::{DateTime, Utc};
 use crate::{
     db::models::OhlcCandleRow,
     shared::{Lookback, OhlcResolution, Period},
-    util::DateTimeExt,
+    util::{DateTimeExt, OhlcBucketAccumulator},
 };
 
 use super::error::{BacktestError, Result};
-
-/// Accumulator for consolidating 1-minute candles into a single resolution bucket.
-#[derive(Clone)]
-struct BucketAccumulator {
-    bucket_time: DateTime<Utc>,
-    first_candle_time: DateTime<Utc>,
-    last_candle_time: DateTime<Utc>,
-    open: f64,
-    high: f64,
-    low: f64,
-    close: f64,
-    volume: i64,
-    min_created_at: DateTime<Utc>,
-    max_updated_at: DateTime<Utc>,
-    all_stable: bool,
-}
-
-impl BucketAccumulator {
-    fn new(bucket_time: DateTime<Utc>) -> Self {
-        Self {
-            bucket_time,
-            first_candle_time: DateTime::<Utc>::MAX_UTC,
-            last_candle_time: DateTime::<Utc>::MIN_UTC,
-            open: 0.0,
-            high: f64::MIN,
-            low: f64::MAX,
-            close: 0.0,
-            volume: 0,
-            min_created_at: DateTime::<Utc>::MAX_UTC,
-            max_updated_at: DateTime::<Utc>::MIN_UTC,
-            all_stable: true,
-        }
-    }
-
-    fn add_candle(&mut self, candle: &OhlcCandleRow) {
-        if candle.time < self.first_candle_time {
-            self.first_candle_time = candle.time;
-            self.open = candle.open;
-        }
-
-        if candle.time > self.last_candle_time {
-            self.last_candle_time = candle.time;
-            self.close = candle.close;
-        }
-
-        self.high = self.high.max(candle.high);
-        self.low = self.low.min(candle.low);
-        self.volume += candle.volume;
-
-        self.min_created_at = self.min_created_at.min(candle.created_at);
-        self.max_updated_at = self.max_updated_at.max(candle.updated_at);
-
-        self.all_stable = self.all_stable && candle.stable;
-    }
-
-    fn to_candle_row(&self, is_complete: bool) -> OhlcCandleRow {
-        OhlcCandleRow {
-            time: self.bucket_time,
-            open: self.open,
-            high: self.high,
-            low: self.low,
-            close: self.close,
-            volume: self.volume,
-            created_at: self.min_created_at,
-            updated_at: self.max_updated_at,
-            stable: self.all_stable && is_complete,
-        }
-    }
-}
 
 /// Stateful runtime consolidator for incrementally converting 1-minute candles into target
 /// resolution candles.
@@ -92,7 +23,7 @@ pub(super) struct RuntimeConsolidator {
     /// The last element is the current incomplete bucket when `current_bucket` is Some
     candles: Vec<OhlcCandleRow>,
     /// Current in-progress bucket (stable = false until completed)
-    current_bucket: Option<BucketAccumulator>,
+    current_bucket: Option<OhlcBucketAccumulator>,
 }
 
 impl RuntimeConsolidator {
@@ -135,7 +66,7 @@ impl RuntimeConsolidator {
                     consolidator.trim_old_candles();
                 } else {
                     // Current incomplete candle. Store as the current bucket
-                    let mut bucket = BucketAccumulator::new(candle.time);
+                    let mut bucket = OhlcBucketAccumulator::new(candle.time);
                     bucket.add_candle(candle);
                     consolidator.candles.push(bucket.to_candle_row(false));
                     consolidator.current_bucket = Some(bucket);
@@ -200,15 +131,15 @@ impl RuntimeConsolidator {
         let candle_bucket_time = self.floor_to_bucket(candle.time);
 
         match &mut self.current_bucket {
-            Some(current) if current.bucket_time == candle_bucket_time => {
+            Some(current) if current.bucket_time() == candle_bucket_time => {
                 current.add_candle(candle);
                 self.sync_current_bucket();
                 return Ok(());
             }
-            Some(current) if candle_bucket_time < current.bucket_time => {
+            Some(current) if candle_bucket_time < current.bucket_time() => {
                 return Err(BacktestError::OutOfOrderCandle {
                     candle_time: candle.time,
-                    bucket_time: current.bucket_time,
+                    bucket_time: current.bucket_time(),
                 });
             }
             _ => {
@@ -217,7 +148,7 @@ impl RuntimeConsolidator {
             }
         }
 
-        let mut new_bucket = BucketAccumulator::new(candle_bucket_time);
+        let mut new_bucket = OhlcBucketAccumulator::new(candle_bucket_time);
         new_bucket.add_candle(candle);
         self.candles.push(new_bucket.to_candle_row(false));
         self.current_bucket = Some(new_bucket);

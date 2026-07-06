@@ -13,23 +13,11 @@ use crate::{
         repositories::{OhlcCandlesRepository, OhlcCandlesRepositoryRead},
     },
     shared::OhlcResolution,
-    util::DateTimeExt,
+    util::{DateTimeExt, OhlcBucketAccumulator},
 };
 
 pub(crate) struct SqliteOhlcCandlesRepo {
     pool: Arc<SqlitePool>,
-}
-
-struct ConsolidatedAccumulator {
-    time: DateTime<Utc>,
-    open: f64,
-    high: f64,
-    low: f64,
-    close: f64,
-    volume: i64,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
-    stable: bool,
 }
 
 impl SqliteOhlcCandlesRepo {
@@ -43,77 +31,6 @@ impl SqliteOhlcCandlesRepo {
 
     async fn start_transaction(&self) -> Result<Transaction<'static, Sqlite>> {
         self.pool.begin().await.map_err(DbError::TransactionBegin)
-    }
-
-    fn consolidate_candles(
-        candles: Vec<OhlcCandleRow>,
-        to: DateTime<Utc>,
-        resolution: OhlcResolution,
-    ) -> Vec<OhlcCandleRow> {
-        let mut consolidated = Vec::new();
-        let mut current: Option<ConsolidatedAccumulator> = None;
-
-        for candle in candles {
-            let bucket_time = candle.time.floor_to_resolution(resolution);
-
-            match current.as_mut() {
-                Some(acc) if acc.time == bucket_time => {
-                    acc.high = acc.high.max(candle.high);
-                    acc.low = acc.low.min(candle.low);
-                    acc.close = candle.close;
-                    acc.volume += candle.volume;
-                    acc.created_at = acc.created_at.min(candle.created_at);
-                    acc.updated_at = acc.updated_at.max(candle.updated_at);
-                    acc.stable &= candle.stable;
-                }
-                Some(acc) => {
-                    consolidated.push(Self::finish_consolidated(acc, to, resolution));
-                    current = Some(ConsolidatedAccumulator::from_candle(bucket_time, candle));
-                }
-                None => current = Some(ConsolidatedAccumulator::from_candle(bucket_time, candle)),
-            }
-        }
-
-        if let Some(acc) = current.as_ref() {
-            consolidated.push(Self::finish_consolidated(acc, to, resolution));
-        }
-
-        consolidated
-    }
-
-    fn finish_consolidated(
-        acc: &ConsolidatedAccumulator,
-        to: DateTime<Utc>,
-        resolution: OhlcResolution,
-    ) -> OhlcCandleRow {
-        OhlcCandleRow {
-            time: acc.time,
-            open: acc.open,
-            high: acc.high,
-            low: acc.low,
-            close: acc.close,
-            volume: acc.volume,
-            created_at: acc.created_at,
-            updated_at: acc.updated_at,
-            stable: acc.stable
-                && acc.time + Duration::seconds(resolution.as_seconds() as i64) <= to,
-        }
-    }
-}
-
-impl ConsolidatedAccumulator {
-    fn from_candle(time: DateTime<Utc>, candle: OhlcCandleRow) -> Self {
-        Self {
-            time,
-            open: candle.open,
-            high: candle.high,
-            low: candle.low,
-            close: candle.close,
-            volume: candle.volume,
-            created_at: candle.created_at,
-            updated_at: candle.updated_at,
-            stable: candle.stable,
-        }
     }
 }
 
@@ -163,7 +80,39 @@ impl OhlcCandlesRepositoryRead for SqliteOhlcCandlesRepo {
             return Ok(candles);
         }
 
-        Ok(Self::consolidate_candles(candles, to, resolution))
+        let mut consolidated = Vec::new();
+        let mut current: Option<OhlcBucketAccumulator> = None;
+
+        let accumulator_from_candle = |bucket_time: DateTime<Utc>, candle: &OhlcCandleRow| {
+            let mut accumulator = OhlcBucketAccumulator::new(bucket_time);
+            accumulator.add_candle(candle);
+            accumulator
+        };
+
+        let finish_consolidated = |acc: &OhlcBucketAccumulator| {
+            let bucket_complete =
+                acc.bucket_time() + Duration::seconds(resolution.as_seconds() as i64) <= to;
+            acc.to_candle_row(bucket_complete)
+        };
+
+        for candle in candles {
+            let bucket_time = candle.time.floor_to_resolution(resolution);
+
+            match current.as_mut() {
+                Some(acc) if acc.bucket_time() == bucket_time => acc.add_candle(&candle),
+                Some(acc) => {
+                    consolidated.push(finish_consolidated(acc));
+                    current = Some(accumulator_from_candle(bucket_time, &candle));
+                }
+                None => current = Some(accumulator_from_candle(bucket_time, &candle)),
+            }
+        }
+
+        if let Some(acc) = current.as_ref() {
+            consolidated.push(finish_consolidated(acc));
+        }
+
+        Ok(consolidated)
     }
 
     async fn get_earliest_candle_time(&self) -> Result<Option<DateTime<Utc>>> {

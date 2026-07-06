@@ -10,8 +10,10 @@ use std::{
 use tokio::task::{JoinError, JoinHandle};
 
 mod dates;
+mod ohlc;
 
 pub(crate) use dates::DateTimeExt;
+pub(crate) use ohlc::OhlcBucketAccumulator;
 
 /// A type that can not be instantiated
 pub(crate) enum Never {}

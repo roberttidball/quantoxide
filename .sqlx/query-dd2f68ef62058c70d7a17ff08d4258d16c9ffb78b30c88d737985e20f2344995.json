@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                WITH ordered AS (\n                    SELECT\n                        time,\n                        stable,\n                        LEAD(time) OVER (ORDER BY time ASC) AS next_time,\n                        LEAD(stable) OVER (ORDER BY time ASC) AS next_stable,\n                        LEAD(gap) OVER (ORDER BY time ASC) AS next_gap\n                    FROM ohlc_candles\n                    WHERE time >= ?1\n                )\n                SELECT time as \"time!: DateTime<Utc>\"\n                FROM ordered\n                WHERE stable = 1\n                AND next_time IS NOT NULL\n                AND unixepoch(next_time) > unixepoch(time) + 60\n                AND next_stable = 1\n                AND next_gap = 0\n                ORDER BY time ASC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "time!: DateTime<Utc>",
+        "ordinal": 0,
+        "type_info": "Datetime",
+        "origin": {
+          "Table": {
+            "table": "ohlc_candles",
+            "name": "time"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "dd2f68ef62058c70d7a17ff08d4258d16c9ffb78b30c88d737985e20f2344995"
+}

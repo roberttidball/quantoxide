@@ -1,0 +1,21 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT EXISTS(SELECT 1 FROM ohlc_candles WHERE time = ?1 AND stable = 1)",
+  "describe": {
+    "columns": [
+      {
+        "name": "EXISTS(SELECT 1 FROM ohlc_candles WHERE time = ?1 AND stable = 1)",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "446b30a051619a7d54241ccabbb7dfa091456ad58d5e74b41eb525994093123e"
+}

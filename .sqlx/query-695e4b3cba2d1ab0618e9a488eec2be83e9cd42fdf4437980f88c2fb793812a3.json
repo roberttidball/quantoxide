@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE ohlc_candles SET gap = 1 WHERE time = ?1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "695e4b3cba2d1ab0618e9a488eec2be83e9cd42fdf4437980f88c2fb793812a3"
+}

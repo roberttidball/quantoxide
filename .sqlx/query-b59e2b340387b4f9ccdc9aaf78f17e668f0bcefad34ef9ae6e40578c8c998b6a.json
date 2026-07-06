@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT\n                    (\n                        SELECT time FROM ohlc_candles\n                        WHERE time < gap_candle.time AND stable = 1\n                        ORDER BY time DESC\n                        LIMIT 1\n                    ) as \"from_time!: DateTime<Utc>\",\n                    gap_candle.time as \"gap_time!: DateTime<Utc>\"\n                FROM ohlc_candles gap_candle\n                WHERE gap_candle.gap = 1\n                AND gap_candle.stable = 1\n                AND EXISTS (\n                    SELECT 1 FROM ohlc_candles\n                    WHERE time < gap_candle.time AND stable = 1\n                )\n                ORDER BY gap_candle.time ASC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "from_time!: DateTime<Utc>",
+        "ordinal": 0,
+        "type_info": "Datetime",
+        "origin": {
+          "Table": {
+            "table": "ohlc_candles",
+            "name": "time"
+          }
+        }
+      },
+      {
+        "name": "gap_time!: DateTime<Utc>",
+        "ordinal": 1,
+        "type_info": "Datetime",
+        "origin": {
+          "Table": {
+            "table": "ohlc_candles",
+            "name": "time"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      true,
+      false
+    ]
+  },
+  "hash": "b59e2b340387b4f9ccdc9aaf78f17e668f0bcefad34ef9ae6e40578c8c998b6a"
+}

@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                    SELECT time as \"time!: DateTime<Utc>\"\n                    FROM ohlc_candles\n                    WHERE time >= ?1 AND time > ?2\n                    ORDER BY time ASC\n                    LIMIT 6\n                ",
+  "describe": {
+    "columns": [
+      {
+        "name": "time!: DateTime<Utc>",
+        "ordinal": 0,
+        "type_info": "Datetime",
+        "origin": {
+          "Table": {
+            "table": "ohlc_candles",
+            "name": "time"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "a8d9f8cddb188c5b398b6b9e55dccd8c5011e727b3da302d44528d6446a84e55"
+}

@@ -1,0 +1,122 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT\n                    time as \"time!: DateTime<Utc>\",\n                    open as \"open!: f64\",\n                    high as \"high!: f64\",\n                    low as \"low!: f64\",\n                    close as \"close!: f64\",\n                    volume as \"volume!: i64\",\n                    created_at as \"created_at!: DateTime<Utc>\",\n                    updated_at as \"updated_at!: DateTime<Utc>\",\n                    stable as \"stable!: bool\"\n                FROM ohlc_candles\n                WHERE time >= ?1 AND time <= ?2\n                ORDER BY time ASC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "time!: DateTime<Utc>",
+        "ordinal": 0,
+        "type_info": "Datetime",
+        "origin": {
+          "Table": {
+            "table": "ohlc_candles",
+            "name": "time"
+          }
+        }
+      },
+      {
+        "name": "open!: f64",
+        "ordinal": 1,
+        "type_info": "Float",
+        "origin": {
+          "Table": {
+            "table": "ohlc_candles",
+            "name": "open"
+          }
+        }
+      },
+      {
+        "name": "high!: f64",
+        "ordinal": 2,
+        "type_info": "Float",
+        "origin": {
+          "Table": {
+            "table": "ohlc_candles",
+            "name": "high"
+          }
+        }
+      },
+      {
+        "name": "low!: f64",
+        "ordinal": 3,
+        "type_info": "Float",
+        "origin": {
+          "Table": {
+            "table": "ohlc_candles",
+            "name": "low"
+          }
+        }
+      },
+      {
+        "name": "close!: f64",
+        "ordinal": 4,
+        "type_info": "Float",
+        "origin": {
+          "Table": {
+            "table": "ohlc_candles",
+            "name": "close"
+          }
+        }
+      },
+      {
+        "name": "volume!: i64",
+        "ordinal": 5,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "ohlc_candles",
+            "name": "volume"
+          }
+        }
+      },
+      {
+        "name": "created_at!: DateTime<Utc>",
+        "ordinal": 6,
+        "type_info": "Datetime",
+        "origin": {
+          "Table": {
+            "table": "ohlc_candles",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "name": "updated_at!: DateTime<Utc>",
+        "ordinal": 7,
+        "type_info": "Datetime",
+        "origin": {
+          "Table": {
+            "table": "ohlc_candles",
+            "name": "updated_at"
+          }
+        }
+      },
+      {
+        "name": "stable!: bool",
+        "ordinal": 8,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "ohlc_candles",
+            "name": "stable"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "4a0667474e6231e4353849f3a3884ab57c38453e3bb9a2ae94b0d62410e03b59"
+}

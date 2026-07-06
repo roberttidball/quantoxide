@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE ohlc_candles SET stable = 0 WHERE time = ?1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "76dd9abcc94886a00ca9ddbe3ab213da8465cca844bbc02e7931e205b3909169"
+}

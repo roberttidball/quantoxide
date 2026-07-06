@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT time as \"time!: DateTime<Utc>\"\n                FROM ohlc_candles\n                ORDER BY time DESC\n                LIMIT 1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "time!: DateTime<Utc>",
+        "ordinal": 0,
+        "type_info": "Datetime",
+        "origin": {
+          "Table": {
+            "table": "ohlc_candles",
+            "name": "time"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "5cf8a38b2d2a3671d20ad7f3e853a42ff053450ef57481cc1d3b28b7978697b3"
+}

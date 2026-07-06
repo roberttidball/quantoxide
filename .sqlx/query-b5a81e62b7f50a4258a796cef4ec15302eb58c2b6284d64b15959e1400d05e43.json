@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                UPDATE ohlc_candles\n                SET gap = 1\n                WHERE time IN (\n                    SELECT c_stable.time\n                    FROM ohlc_candles c_stable\n                    WHERE c_stable.time >= ?1\n                    AND c_stable.stable = 1\n                    AND c_stable.gap = 0\n                    AND (\n                        SELECT stable\n                        FROM ohlc_candles\n                        WHERE time < c_stable.time\n                        ORDER BY time DESC\n                        LIMIT 1\n                    ) = 0\n                )\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "b5a81e62b7f50a4258a796cef4ec15302eb58c2b6284d64b15959e1400d05e43"
+}

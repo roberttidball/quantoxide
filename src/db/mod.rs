@@ -1,4 +1,6 @@
-use std::{sync::Arc, time};
+use std::sync::Arc;
+#[cfg(feature = "postgres")]
+use std::time;
 
 use chrono::Duration;
 #[cfg(feature = "postgres")]
@@ -60,7 +62,8 @@ impl From<PgPoolOptions> for DatabasePoolOptions {
 /// Primary database interface for market data persistence and retrieval.
 ///
 /// Provides access to repositories for OHLC candle data, price tick data, and running trade
-/// information. Uses PostgreSQL as the underlying storage engine with automatic migrations.
+/// information. Backend constructors initialize the underlying storage engine with automatic
+/// migrations.
 pub struct Database {
     pub(crate) ohlc_candles: Box<dyn OhlcCandlesRepository>,
     pub(crate) price_ticks: Box<dyn PriceTicksRepository>,
@@ -69,7 +72,21 @@ pub struct Database {
 }
 
 impl Database {
-    /// Creates a new database instance with default pool options and runs migrations.
+    fn from_repositories(
+        ohlc_candles: Box<dyn OhlcCandlesRepository>,
+        price_ticks: Box<dyn PriceTicksRepository>,
+        running_trades: Box<dyn RunningTradesRepository>,
+        funding_settlements: Box<dyn FundingSettlementsRepository>,
+    ) -> Arc<Self> {
+        Arc::new(Self {
+            ohlc_candles,
+            price_ticks,
+            running_trades,
+            funding_settlements,
+        })
+    }
+
+    /// Creates a PostgreSQL database instance with default pool options and runs migrations.
     ///
     /// Establishes a connection pool to the PostgreSQL database and automatically applies any
     /// pending migrations. Returns an error if the connection fails or migrations cannot be
@@ -83,16 +100,26 @@ impl Database {
     /// use quantoxide::Database;
     ///
     /// let db_url = std::env::var("POSTGRES_DB_URL")?;
-    /// let db = Database::new(&db_url).await?;
+    /// let db = Database::postgres(&db_url).await?;
     /// # Ok(())
     /// # }
     /// ```
     #[cfg(feature = "postgres")]
-    pub async fn new(postgres_db_url: &str) -> Result<Arc<Self>> {
+    pub async fn postgres(postgres_db_url: &str) -> Result<Arc<Self>> {
         Self::with_pool_options(postgres_db_url, DEFAULT_PG_POOL_OPTIONS.clone()).await
     }
 
-    /// Creates a new database instance with caller-provided pool options and runs migrations.
+    /// Creates a PostgreSQL database instance with default pool options and runs migrations.
+    ///
+    /// Prefer [`Database::postgres`] for new code. This compatibility constructor remains
+    /// PostgreSQL-only and does not auto-detect backends from the URL.
+    #[cfg(feature = "postgres")]
+    #[deprecated(note = "use `Database::postgres` for PostgreSQL or `Database::sqlite` for SQLite")]
+    pub async fn new(postgres_db_url: &str) -> Result<Arc<Self>> {
+        Self::postgres(postgres_db_url).await
+    }
+
+    /// Creates a PostgreSQL database instance with caller-provided pool options and runs migrations.
     ///
     /// Use this constructor when the default pool size or acquire timeout is not appropriate for
     /// the workload or host. [`PgPoolOptions`] is re-exported by this crate so consumers can
@@ -136,12 +163,12 @@ impl Database {
                 let running_trades = Box::new(PgRunningTradesRepo::new(pool.clone()));
                 let funding_settlements = Box::new(PgFundingSettlementsRepo::new(pool.clone()));
 
-                Ok(Arc::new(Self {
+                Ok(Self::from_repositories(
                     ohlc_candles,
                     price_ticks,
                     running_trades,
                     funding_settlements,
-                }))
+                ))
             }
         }
     }

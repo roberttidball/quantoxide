@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT\n                    time as \"time!: DateTime<Utc>\",\n                    close as \"price!: f64\"\n                FROM ohlc_candles\n                ORDER BY time DESC\n                LIMIT 1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "time!: DateTime<Utc>",
+        "ordinal": 0,
+        "type_info": "Datetime",
+        "origin": {
+          "Table": {
+            "table": "ohlc_candles",
+            "name": "time"
+          }
+        }
+      },
+      {
+        "name": "price!: f64",
+        "ordinal": 1,
+        "type_info": "Float",
+        "origin": {
+          "Table": {
+            "table": "ohlc_candles",
+            "name": "close"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "9b2163d386eac96c7ea1c80aa23e71baf3e8117d4157738c510adb3aa91366c7"
+}

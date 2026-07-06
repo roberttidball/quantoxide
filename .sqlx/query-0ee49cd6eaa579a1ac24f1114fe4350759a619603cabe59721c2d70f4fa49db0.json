@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT\n                    time as \"time!: DateTime<Utc>\",\n                    last_price as \"price!: f64\"\n                FROM price_ticks\n                ORDER BY time DESC\n                LIMIT 1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "time!: DateTime<Utc>",
+        "ordinal": 0,
+        "type_info": "Datetime",
+        "origin": {
+          "Table": {
+            "table": "price_ticks",
+            "name": "time"
+          }
+        }
+      },
+      {
+        "name": "price!: f64",
+        "ordinal": 1,
+        "type_info": "Float",
+        "origin": {
+          "Table": {
+            "table": "price_ticks",
+            "name": "last_price"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "0ee49cd6eaa579a1ac24f1114fe4350759a619603cabe59721c2d70f4fa49db0"
+}

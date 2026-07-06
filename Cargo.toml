@@ -15,6 +15,11 @@ license = "Apache-2.0"
 keywords = ["bitcoin", "backtesting", "algotrading", "futures", "trading"]
 categories = ["finance", "simulation", "cryptography::cryptocurrencies"]
 
+[features]
+default = ["postgres"]
+postgres = ["sqlx/postgres"]
+sqlite = ["sqlx/sqlite"]
+
 [dependencies]
 lnm-sdk = "0.6.0"
 async-trait = "0.1.89"
@@ -22,10 +27,10 @@ chrono = { version = "0.4.45", features = ["now", "serde"] }
 futures = "0.3.32"
 lazy_static = "1.5.0"
 ratatui = "0.30.2"
-sqlx = { version = "0.9.0", features = [
+sqlx = { version = "0.9.0", default-features = false, features = [
     "chrono",
+    "macros",
     "migrate",
-    "postgres",
     "runtime-tokio",
     "uuid",
 ] }

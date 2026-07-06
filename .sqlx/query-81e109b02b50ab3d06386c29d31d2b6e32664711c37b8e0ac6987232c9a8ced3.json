@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT INTO running_trades (account_id, trade_id, trailing_stoploss)\n                VALUES (?1, ?2, ?3)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "81e109b02b50ab3d06386c29d31d2b6e32664711c37b8e0ac6987232c9a8ced3"
+}

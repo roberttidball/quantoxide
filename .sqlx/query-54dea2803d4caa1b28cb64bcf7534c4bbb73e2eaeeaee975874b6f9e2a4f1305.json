@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT\n                    trade_id as \"trade_id!: Uuid\",\n                    trailing_stoploss as \"trailing_stoploss?: f64\"\n                FROM running_trades\n                WHERE account_id = ?1\n                ORDER BY created_at ASC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "trade_id!: Uuid",
+        "ordinal": 0,
+        "type_info": "Blob",
+        "origin": {
+          "Table": {
+            "table": "running_trades",
+            "name": "trade_id"
+          }
+        }
+      },
+      {
+        "name": "trailing_stoploss?: f64",
+        "ordinal": 1,
+        "type_info": "Float",
+        "origin": {
+          "Table": {
+            "table": "running_trades",
+            "name": "trailing_stoploss"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "54dea2803d4caa1b28cb64bcf7534c4bbb73e2eaeeaee975874b6f9e2a4f1305"
+}

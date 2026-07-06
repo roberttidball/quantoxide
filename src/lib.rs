@@ -26,10 +26,13 @@ pub mod trade;
 pub mod tui;
 mod util;
 
+#[cfg(feature = "postgres")]
+pub use db::{DEFAULT_PG_POOL_OPTIONS, DatabasePoolOptions};
 pub use db::{
-    DEFAULT_PG_POOL_OPTIONS, Database, DatabasePoolOptions, FundingSettlementsRepositoryRead,
-    OhlcCandlesRepositoryRead, PriceTicksRepositoryRead, RunningTradesRepositoryRead,
+    Database, FundingSettlementsRepositoryRead, OhlcCandlesRepositoryRead,
+    PriceTicksRepositoryRead, RunningTradesRepositoryRead,
 };
+#[cfg(feature = "postgres")]
 pub use sqlx::postgres::PgPoolOptions;
 
 /// Error types returned by `quantoxide`.

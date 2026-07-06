@@ -1,7 +1,9 @@
 use std::{sync::Arc, time};
 
 use chrono::Duration;
+#[cfg(feature = "postgres")]
 use lazy_static::lazy_static;
+#[cfg(feature = "postgres")]
 use sqlx::postgres::PgPoolOptions;
 
 pub(crate) mod error;
@@ -11,6 +13,7 @@ pub(crate) mod models;
 /// past. The API may return slightly different OHLC values for recent candles across requests.
 pub(crate) const CANDLE_STABLE_AGE: Duration = Duration::hours(1);
 
+#[cfg(feature = "postgres")]
 mod postgres;
 mod repositories;
 
@@ -20,6 +23,7 @@ pub use repositories::{
 };
 
 use error::{DbError, Result};
+#[cfg(feature = "postgres")]
 use postgres::{
     funding_settlements::PgFundingSettlementsRepo, ohlc_candles::PgOhlcCandlesRepo,
     price_ticks::PgPriceTicksRepo, running_trades::PgRunningTradesRepo,
@@ -29,6 +33,7 @@ use repositories::{
     RunningTradesRepository,
 };
 
+#[cfg(feature = "postgres")]
 lazy_static! {
     /// Default [`PgPoolOptions`] used by [`Database::new`].
     pub static ref DEFAULT_PG_POOL_OPTIONS: PgPoolOptions = PgPoolOptions::new()
@@ -41,9 +46,11 @@ lazy_static! {
 #[derive(Clone, Debug)]
 pub enum DatabasePoolOptions {
     /// PostgreSQL pool options.
+    #[cfg(feature = "postgres")]
     Postgres(PgPoolOptions),
 }
 
+#[cfg(feature = "postgres")]
 impl From<PgPoolOptions> for DatabasePoolOptions {
     fn from(pool_options: PgPoolOptions) -> Self {
         Self::Postgres(pool_options)
@@ -80,6 +87,7 @@ impl Database {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg(feature = "postgres")]
     pub async fn new(postgres_db_url: &str) -> Result<Arc<Self>> {
         Self::with_pool_options(postgres_db_url, DEFAULT_PG_POOL_OPTIONS.clone()).await
     }
@@ -105,6 +113,7 @@ impl Database {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg(feature = "postgres")]
     pub async fn with_pool_options(
         database_url: &str,
         pool_options: impl Into<DatabasePoolOptions>,
@@ -116,7 +125,7 @@ impl Database {
                     .await
                     .map_err(DbError::Connection)?;
 
-                sqlx::migrate!("./migrations")
+                sqlx::migrate!("./migrations/postgres")
                     .run(&pool)
                     .await
                     .map_err(DbError::Migration)?;

@@ -340,3 +340,29 @@ impl Database {
         self.running_trades.as_ref()
     }
 }
+
+#[cfg(all(test, feature = "sqlite"))]
+mod sqlite_tests {
+    use std::{env, fs};
+
+    use uuid::Uuid;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn database_new_sqlite_creates_file_and_runs_migrations() {
+        let path = env::temp_dir().join(format!("quantoxide-{}.sqlite", Uuid::new_v4()));
+        let database_url = format!("sqlite:{}", path.display());
+        assert!(!path.exists());
+
+        let db = Database::new(&database_url).await.unwrap();
+        assert!(path.exists());
+
+        assert_eq!(db.price_ticks().get_latest_entry().await.unwrap(), None);
+
+        drop(db);
+        for suffix in ["", "-shm", "-wal"] {
+            let _ = fs::remove_file(format!("{}{}", path.display(), suffix));
+        }
+    }
+}

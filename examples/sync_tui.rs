@@ -6,27 +6,22 @@ use dotenvy::dotenv;
 
 use quantoxide::{
     Database,
+    error::Result,
     sync::{SyncConfig, SyncEngine, SyncMode},
     tui::{SyncTui, TuiConfig},
 };
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<()> {
     dotenv().ok();
 
-    println!("Launching `SyncTui`...");
+    let db_url = env::var("DATABASE_URL").map_err(|_| "`DATABASE_URL` is not set")?;
 
-    let sync_tui = SyncTui::launch(TuiConfig::default(), None).await?;
+    println!("Initializing database...");
 
-    // Direct `stdout`/`stderr` outputs will corrupt the TUI. Use `sync_tui.log()` instead
-    sync_tui.log("Initializing database...".into()).await?;
-
-    let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let db = Database::new(&db_url).await?;
 
-    sync_tui
-        .log("Database ready. Initializing `SyncEngine`...".into())
-        .await?;
+    println!("Database ready. Initializing `SyncEngine`...");
 
     let config = SyncConfig::default();
     // How far back to fetch price history data can be configured with:
@@ -36,10 +31,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let sync_engine = SyncEngine::new(config, db, SyncMode::Backfill)?;
 
-    sync_tui
-        .log("Initialization OK. Coupling `SyncEngine`...".into())
-        .await?;
+    println!("Initialization OK. Launching `SyncTui`...");
 
+    let sync_tui = SyncTui::launch(TuiConfig::default(), None).await?;
     sync_tui.couple(sync_engine)?;
 
     let final_status = sync_tui.until_stopped().await;

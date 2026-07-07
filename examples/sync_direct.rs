@@ -7,16 +7,18 @@ use tokio::time::{self, Duration};
 
 use quantoxide::{
     Database,
+    error::Result,
     sync::{SyncConfig, SyncEngine, SyncMode, SyncUpdate},
 };
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<()> {
     dotenv().ok();
+
+    let db_url = env::var("DATABASE_URL").map_err(|_| "`DATABASE_URL` is not set")?;
 
     println!("Initializing database...");
 
-    let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let db = Database::new(&db_url).await?;
 
     println!("Database ready. Initializing `SyncEngine`...");

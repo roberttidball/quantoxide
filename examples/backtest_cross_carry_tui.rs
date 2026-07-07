@@ -78,27 +78,43 @@ async fn main() -> Result<()> {
     println!("Hedge percentage: {:.2}%", hedge_perc.as_f64());
     println!("End date: {}\n", end_time.format("%Y-%m-%d %H:%M %Z"));
 
-    println!("Initializing `BacktestEngine`...");
-
-    let operator = CrossCarryOperator::boxed(CrossCarryOperatorConfig::default(), hedge_perc);
-
-    let backtest_engine = BacktestEngine::with_raw_operator(
-        BacktestConfig::default(),
-        db,
-        operator,
-        start_time,
-        start_balance,
-        end_time,
-    )
-    .await?;
-
-    println!("Initialization OK. Launching `BacktestTui`...");
+    println!("Launching `BacktestTui`...");
 
     let backtest_tui = BacktestTui::launch(TuiConfig::default(), None).await?;
-    backtest_tui.couple(backtest_engine).await?;
+
+    // Build the operator and engine after launch so the operator can log through `backtest_tui`.
+    // `until_stopped` restores the terminal before any `stdout`/`stderr` output.
+
+    let init_result = async {
+        let operator = CrossCarryOperator::boxed(CrossCarryOperatorConfig::default(), hedge_perc)
+            .enable_tui_logger(backtest_tui.as_logger());
+
+        let backtest_engine = BacktestEngine::with_raw_operator(
+            BacktestConfig::default(),
+            db,
+            operator,
+            start_time,
+            start_balance,
+            end_time,
+        )
+        .await?;
+
+        backtest_tui.couple(backtest_engine).await?;
+
+        Ok(())
+    }
+    .await;
+
+    if init_result.is_err() {
+        let _ = backtest_tui.shutdown().await;
+    }
 
     let final_status = backtest_tui.until_stopped().await;
-    println!("`BacktestTui` status: {final_status}");
 
-    Ok(())
+    match &init_result {
+        Ok(()) => println!("`BacktestTui` status: {final_status}\n"),
+        Err(error) => eprintln!("`BacktestTui` initialization error: {error}\n"),
+    }
+
+    init_result
 }

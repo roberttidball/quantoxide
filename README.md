@@ -141,8 +141,8 @@ Complete runnable examples are available in the
 directory. The snippets below demonstrate the core components of the framework.
 
 > **Note**: `println!` and other `stdout`/`stderr` outputs should be avoided when TUIs are running,
-> since they would disrupt rendering. Run fallible setup before launching the TUI, and use TUI
-> logging abstractions for any messages that must be emitted while the TUI is active.
+> since they would disrupt rendering. Prefer to run fallible setup before launching the TUI, and use
+> TUI logging abstractions for any messages that must be emitted while the TUI is active.
 
 ### Trade Operator
 

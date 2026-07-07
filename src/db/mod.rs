@@ -90,11 +90,11 @@ impl From<SqlitePoolOptions> for DatabasePoolOptions {
 
 #[cfg(any(feature = "postgres", feature = "sqlite"))]
 impl DatabasePoolOptions {
-    fn for_database_url(database_url: &str) -> Result<Self> {
-        let scheme = database_url
+    fn for_database_url(db_url: &str) -> Result<Self> {
+        let scheme = db_url
             .split_once(':')
             .map(|(scheme, _)| scheme)
-            .unwrap_or(database_url);
+            .unwrap_or(db_url);
 
         match scheme {
             "postgres" | "postgresql" => {
@@ -168,9 +168,9 @@ impl Database {
     /// # }
     /// ```
     #[cfg(any(feature = "postgres", feature = "sqlite"))]
-    pub async fn new(database_url: &str) -> Result<Arc<Self>> {
-        let pool_options = DatabasePoolOptions::for_database_url(database_url)?;
-        Self::with_pool_options(database_url, pool_options).await
+    pub async fn new(db_url: &str) -> Result<Arc<Self>> {
+        let pool_options = DatabasePoolOptions::for_database_url(db_url)?;
+        Self::with_pool_options(db_url, pool_options).await
     }
 
     /// Creates a database instance with caller-provided pool options and runs migrations.
@@ -197,28 +197,28 @@ impl Database {
     /// ```
     #[cfg(any(feature = "postgres", feature = "sqlite"))]
     pub async fn with_pool_options(
-        database_url: &str,
+        db_url: &str,
         pool_options: impl Into<DatabasePoolOptions>,
     ) -> Result<Arc<Self>> {
         match pool_options.into() {
             #[cfg(feature = "postgres")]
             DatabasePoolOptions::Postgres(pool_options) => {
-                Self::postgres_with_pool_options(database_url, pool_options).await
+                Self::postgres_with_pool_options(db_url, pool_options).await
             }
             #[cfg(feature = "sqlite")]
             DatabasePoolOptions::Sqlite(pool_options) => {
-                Self::sqlite_with_pool_options(database_url, pool_options).await
+                Self::sqlite_with_pool_options(db_url, pool_options).await
             }
         }
     }
 
     #[cfg(feature = "postgres")]
     async fn postgres_with_pool_options(
-        database_url: &str,
+        db_url: &str,
         pool_options: PgPoolOptions,
     ) -> Result<Arc<Self>> {
         let pool = pool_options
-            .connect(database_url)
+            .connect(db_url)
             .await
             .map_err(DbError::Connection)?;
 
@@ -243,10 +243,10 @@ impl Database {
 
     #[cfg(feature = "sqlite")]
     async fn sqlite_with_pool_options(
-        database_url: &str,
+        db_url: &str,
         pool_options: SqlitePoolOptions,
     ) -> Result<Arc<Self>> {
-        let connect_options = SqliteConnectOptions::from_str(database_url)
+        let connect_options = SqliteConnectOptions::from_str(db_url)
             .map_err(DbError::Connection)?
             .create_if_missing(true);
 
@@ -352,10 +352,10 @@ mod sqlite_tests {
     #[tokio::test]
     async fn database_new_sqlite_creates_file_and_runs_migrations() {
         let path = env::temp_dir().join(format!("quantoxide-{}.sqlite", Uuid::new_v4()));
-        let database_url = format!("sqlite:{}", path.display());
+        let db_url = format!("sqlite:{}", path.display());
         assert!(!path.exists());
 
-        let db = Database::new(&database_url).await.unwrap();
+        let db = Database::new(&db_url).await.unwrap();
         assert!(path.exists());
 
         assert_eq!(db.price_ticks().get_latest_entry().await.unwrap(), None);

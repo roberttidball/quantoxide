@@ -141,8 +141,8 @@ Complete runnable examples are available in the
 directory. The snippets below demonstrate the core components of the framework.
 
 > **Note**: `println!` and other `stdout`/`stderr` outputs should be avoided when TUIs are running,
-> since they would disrupt rendering. TUI `::log` methods should be used instead, as implemented in
-> the complete examples.
+> since they would disrupt rendering. Run fallible setup before launching the TUI, and use TUI
+> logging abstractions for any messages that must be emitted while the TUI is active.
 
 ### Trade Operator
 
@@ -197,10 +197,10 @@ use quantoxide::{
     tui::{SyncTui, TuiConfig},
 };
 
-let sync_tui = SyncTui::launch(TuiConfig::default(), None).await?;
 let db = Database::new(&db_url).await?;
 let sync_engine = SyncEngine::new(SyncConfig::default(), db, SyncMode::Backfill)?;
 
+let sync_tui = SyncTui::launch(TuiConfig::default(), None).await?;
 sync_tui.couple(sync_engine)?;
 sync_tui.until_stopped().await;
 ```
@@ -229,7 +229,6 @@ use quantoxide::{
     tui::{BacktestTui, TuiConfig},
 };
 
-let backtest_tui = BacktestTui::launch(TuiConfig::default(), None).await?;
 let db = Database::new(&db_url).await?;
 let operator = MyOperator::new();
 
@@ -242,6 +241,7 @@ let backtest_engine = BacktestEngine::with_raw_operator(
     end_time,
 ).await?;
 
+let backtest_tui = BacktestTui::launch(TuiConfig::default(), None).await?;
 backtest_tui.couple(backtest_engine).await?;
 backtest_tui.until_stopped().await;
 ```
@@ -280,7 +280,6 @@ use quantoxide::{
     tui::{LiveTui, TuiConfig},
 };
 
-let live_tui = LiveTui::launch(TuiConfig::default(), None).await?;
 let db = Database::new(&db_url).await?;
 let operator = MyOperator::new();
 
@@ -293,6 +292,7 @@ let live_engine = LiveTradeEngine::with_raw_operator(
     operator,
 )?;
 
+let live_tui = LiveTui::launch(TuiConfig::default(), None).await?;
 live_tui.couple(live_engine).await?;
 live_tui.until_stopped().await;
 ```

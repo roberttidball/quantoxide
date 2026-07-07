@@ -14,11 +14,10 @@ use quantoxide::{
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
 
-    let pg_url = env::var("POSTGRES_DB_URL").expect("POSTGRES_DB_URL must be set");
-
     println!("Initializing database...");
 
-    let db = Database::new(&pg_url).await?;
+    let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let db = Database::new(&db_url).await?;
 
     println!("Database ready. Initializing `SyncEngine`...");
 

@@ -31,7 +31,6 @@ const DEFAULT_HEDGE_PERC: f64 = 100.0;
 async fn main() -> Result<()> {
     dotenv().ok();
 
-    let pg_url = env::var("POSTGRES_DB_URL").expect("POSTGRES_DB_URL must be set");
     let key = env::var("LNM_API_KEY").expect("LNM_API_KEY must be set");
     let secret = env::var("LNM_API_SECRET").expect("LNM_API_SECRET must be set");
     let passphrase = env::var("LNM_API_PASSPHRASE").expect("LNM_API_PASSPHRASE must be set");
@@ -53,7 +52,8 @@ async fn main() -> Result<()> {
     // Direct `stdout`/`stderr` outputs will corrupt the TUI. Use `live_tui.log()` instead.
     live_tui.log("Initializing database...".into()).await?;
 
-    let db = Database::new(&pg_url).await?;
+    let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let db = Database::new(&db_url).await?;
 
     live_tui
         .log("Database ready. Initializing `LiveTradeEngine`...".into())

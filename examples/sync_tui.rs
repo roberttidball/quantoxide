@@ -14,8 +14,6 @@ use quantoxide::{
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
 
-    let pg_url = env::var("POSTGRES_DB_URL").expect("POSTGRES_DB_URL must be set");
-
     println!("Launching `SyncTui`...");
 
     let sync_tui = SyncTui::launch(TuiConfig::default(), None).await?;
@@ -23,7 +21,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Direct `stdout`/`stderr` outputs will corrupt the TUI. Use `sync_tui.log()` instead
     sync_tui.log("Initializing database...".into()).await?;
 
-    let db = Database::new(&pg_url).await?;
+    let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let db = Database::new(&db_url).await?;
 
     sync_tui
         .log("Database ready. Initializing `SyncEngine`...".into())

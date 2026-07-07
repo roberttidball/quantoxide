@@ -33,11 +33,10 @@ const DEFAULT_HEDGE_PERC: f64 = 100.0;
 async fn main() -> Result<()> {
     dotenv().ok();
 
-    let pg_url = env::var("POSTGRES_DB_URL").expect("POSTGRES_DB_URL must be set");
-
     println!("Initializing database...");
 
-    let db = Database::new(&pg_url).await?;
+    let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let db = Database::new(&db_url).await?;
 
     println!("Database ready. Evaluating `PriceHistoryState`...");
 

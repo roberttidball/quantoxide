@@ -20,13 +20,14 @@ use operators::raw::RawOperatorTemplate;
 async fn main() -> Result<()> {
     dotenv().ok();
 
-    let key = env::var("LNM_API_KEY").expect("LNM_API_KEY must be set");
-    let secret = env::var("LNM_API_SECRET").expect("LNM_API_SECRET must be set");
-    let passphrase = env::var("LNM_API_PASSPHRASE").expect("LNM_API_PASSPHRASE must be set");
+    let db_url = env::var("DATABASE_URL").map_err(|_| "`DATABASE_URL` is not set")?;
+    let key = env::var("LNM_API_KEY").map_err(|_| "`LNM_API_KEY` is not set")?;
+    let secret = env::var("LNM_API_SECRET").map_err(|_| "`LNM_API_SECRET` is not set")?;
+    let passphrase =
+        env::var("LNM_API_PASSPHRASE").map_err(|_| "`LNM_API_PASSPHRASE` is not set")?;
 
     println!("Initializing database...");
 
-    let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let db = Database::new(&db_url).await?;
 
     println!("Database ready. Initializing `LiveTradeEngine`...");
@@ -41,6 +42,8 @@ async fn main() -> Result<()> {
         passphrase,
         operator,
     )?;
+
+    println!("Initialization OK. Starting `LiveTradeEngine`...");
 
     let mut live_rx = live_engine.update_receiver();
 
@@ -71,8 +74,6 @@ async fn main() -> Result<()> {
             }
         }
     });
-
-    println!("Initialization OK. Starting `LiveTradeEngine`...");
 
     let live_controller = live_engine.start().await?;
 

@@ -20,26 +20,19 @@ use operators::raw::RawOperatorTemplate;
 async fn main() -> Result<()> {
     dotenv().ok();
 
-    let key = env::var("LNM_API_KEY").expect("LNM_API_KEY must be set");
-    let secret = env::var("LNM_API_SECRET").expect("LNM_API_SECRET must be set");
-    let passphrase = env::var("LNM_API_PASSPHRASE").expect("LNM_API_PASSPHRASE must be set");
+    let db_url = env::var("DATABASE_URL").map_err(|_| "`DATABASE_URL` is not set")?;
+    let key = env::var("LNM_API_KEY").map_err(|_| "`LNM_API_KEY` is not set")?;
+    let secret = env::var("LNM_API_SECRET").map_err(|_| "`LNM_API_SECRET` is not set")?;
+    let passphrase =
+        env::var("LNM_API_PASSPHRASE").map_err(|_| "`LNM_API_PASSPHRASE` is not set")?;
 
-    println!("Launching `LiveTui`...");
+    println!("Initializing database...");
 
-    let live_tui = LiveTui::launch(TuiConfig::default(), None).await?;
-
-    // Direct `stdout`/`stderr` outputs will corrupt the TUI. Use `live_tui.log()` instead
-    live_tui.log("Initializing database...".into()).await?;
-
-    let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let db = Database::new(&db_url).await?;
 
-    live_tui
-        .log("Database ready. Initializing `LiveTradeEngine`...".into())
-        .await?;
+    println!("Database ready. Initializing `LiveTradeEngine`...");
 
-    // Pass TUI logger to Trade Operator
-    let operator = RawOperatorTemplate::boxed().enable_tui_logger(live_tui.as_logger());
+    let operator = RawOperatorTemplate::boxed();
 
     let live_engine = LiveTradeEngine::with_raw_operator(
         LiveTradeConfig::default(),
@@ -50,10 +43,9 @@ async fn main() -> Result<()> {
         operator,
     )?;
 
-    live_tui
-        .log("Initialization OK. Coupling `LiveTradeEngine`...".into())
-        .await?;
+    println!("Initialization OK. Launching `LiveTui`...");
 
+    let live_tui = LiveTui::launch(TuiConfig::default(), None).await?;
     live_tui.couple(live_engine).await?;
 
     let final_status = live_tui.until_stopped().await;

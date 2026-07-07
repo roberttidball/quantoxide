@@ -23,8 +23,15 @@ Utilities shared across examples:
 
 ## Prerequisites
 
-All examples require a running PostgreSQL instance and the following environment variable:
-- `POSTGRES_DB_URL` - PostgreSQL database connection URL
+All examples require a local database URL in `DATABASE_URL`.
+
+Supported database URLs:
+- `sqlite:./path/to/quantoxide.sqlite` - SQLite database file. This is the simplest local backend;
+  the path after `sqlite:` is resolved relative to the directory where the example command is run,
+  and the file is created automatically when the `sqlite` feature is enabled.
+- `postgres://postgres:password@localhost:5432/postgres` - PostgreSQL connection URL.
+
+`Database::new` automatically runs the matching backend migrations on first use.
 
 Synchronization examples use the `lnm-sdk` default LN Markets REST/Stream endpoints.
 
@@ -44,9 +51,25 @@ These environment variables should be set, or a `.env` file should be added in t
 A [`.env.template`](https://github.com/flemosr/quantoxide/blob/main/.env.template) file is
 available.
 
+### Setting up SQLite
+
+For local development, create a `.env` file with:
+
+```env
+DATABASE_URL=sqlite:./target/quantoxide.sqlite
+```
+
+With this value, running examples from the repository root creates `./target/quantoxide.sqlite`,
+keeping the generated database under Cargo's ignored build directory. Then run examples with the
+SQLite feature, for example:
+
+```bash
+cargo run --no-default-features --features sqlite --example sync_tui
+```
+
 ### Setting up PostgreSQL with Docker
 
-To quickly set up a PostgreSQL database for running the examples:
+To quickly set up a PostgreSQL database for running the examples with the default feature:
 
 ```bash
 docker run -d \
@@ -57,9 +80,10 @@ docker run -d \
   postgres:18.4-bookworm
 ```
 
-Then the `POSTGRES_DB_URL` environment variable should be set to:
-```
-postgres://postgres:password@localhost:5432/postgres
+Then `DATABASE_URL` should be set to:
+
+```env
+DATABASE_URL=postgres://postgres:password@localhost:5432/postgres
 ```
 
 Useful commands:

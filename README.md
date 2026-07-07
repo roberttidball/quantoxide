@@ -34,8 +34,8 @@ quantoxide = "<quantoxide-version>"
 
 ### Requirements
 
-A PostgreSQL database instance is required to store historical price data. Quick setup instructions
-are available in the
+A local database instance is required to store historical price data. SQLite and PostgreSQL are
+supported. Quick setup instructions are available in the
 [examples `README`](https://github.com/flemosr/quantoxide/blob/main/examples/README.md).
 
 ### AI Quickstart
@@ -68,7 +68,7 @@ Trade operators can be implemented in two ways:
 
 ### Synchronization
 
-The **Synchronization** process is responsible for determining the current state of the PostgreSQL
+The **Synchronization** process is responsible for determining the current state of the local
 database, identifying gaps, and fetching the necessary data from LN Markets to remediate them.
 Having some continous historical market data stored in the database is a prerequisite for
 backtesting. The `SyncEngine` supports both 'backfill' mode (to fetch historical OHLC candle and
@@ -77,7 +77,7 @@ funding settlement data) and 'live' mode, handling live price data received via 
 ### Backtesting
 
 The **Backtesting** engine allows trading strategies to be tested against historical price data
-stored in the PostgreSQL database, without risking real funds. The `BacktestEngine` replays
+stored in the local database, without risking real funds. The `BacktestEngine` replays
 historical market conditions, simulating the Trade Operator actions and tracking performance metrics.
 Backtests include:
 + High-resolution market replay using real 1-minute OHLC data
@@ -198,7 +198,7 @@ use quantoxide::{
 };
 
 let sync_tui = SyncTui::launch(TuiConfig::default(), None).await?;
-let db = Database::new(&pg_url).await?;
+let db = Database::new(&db_url).await?;
 let sync_engine = SyncEngine::new(SyncConfig::default(), db, SyncMode::Backfill)?;
 
 sync_tui.couple(sync_engine)?;
@@ -230,7 +230,7 @@ use quantoxide::{
 };
 
 let backtest_tui = BacktestTui::launch(TuiConfig::default(), None).await?;
-let db = Database::new(&pg_url).await?;
+let db = Database::new(&db_url).await?;
 let operator = MyOperator::new();
 
 let backtest_engine = BacktestEngine::with_raw_operator(
@@ -281,7 +281,7 @@ use quantoxide::{
 };
 
 let live_tui = LiveTui::launch(TuiConfig::default(), None).await?;
-let db = Database::new(&pg_url).await?;
+let db = Database::new(&db_url).await?;
 let operator = MyOperator::new();
 
 let live_engine = LiveTradeEngine::with_raw_operator(

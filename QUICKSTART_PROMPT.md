@@ -179,7 +179,9 @@ Each engine has two modes:
    - The last candle may not be finalized; use `trading_state.last_tick_time()` to assess how much of the candle's time bucket has elapsed and judge its validity accordingly
 
 **General coding practices:**
-- Use TUI `::log` methods instead of `println!` when TUIs are running
+- Do not use `println!` or other stdout/stderr output while TUIs are running; use TUI logging hooks instead
+- Prefer fallible setup before launching a TUI. If an operator or evaluator needs a TUI logger,
+  follow the live TUI examples for the launch-then-init shape and terminal-safe error handling.
 - Include proper error handling with `Result<()>`
 - Database schema auto-initializes on first `Database::new()` call
 - Use the crate `sqlite` feature for SQLite, or `postgres` URLs for PostgreSQL

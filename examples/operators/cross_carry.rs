@@ -19,7 +19,10 @@ use quantoxide::{
         CrossLeverage, CrossQuantity, Lookback, MinIterationInterval, OhlcCandleRow, OrderQuantity,
         Percentage, PercentageCapped, Price, SATS_PER_BTC, TradeSide,
     },
-    trade::{CrossOrderRequest, CrossPositionCore, RawOperator, TradeExecutor, TradingState},
+    trade::{
+        CrossOrderRequest, CrossPositionCore, CrossQuantityValidationError, RawOperator,
+        TradeExecutor, TradingState,
+    },
     tui::TuiLogger,
 };
 
@@ -374,7 +377,12 @@ impl CarryStatus {
         let account_net_value_usd =
             state.total_net_value() as f64 * market_price.as_f64() / SATS_PER_BTC;
         let target_hedge_usd = account_net_value_usd * hedge_perc.as_f64() / 100.0;
-        let target_hedge = CrossQuantity::try_from(target_hedge_usd.floor())?;
+
+        let target_hedge = match CrossQuantity::try_from(target_hedge_usd.floor()) {
+            Ok(target_hedge) => target_hedge,
+            Err(CrossQuantityValidationError::TooLow { .. }) => return Ok(Self::Balanced),
+            Err(error) => return Err(error.into()),
+        };
 
         if let Some(imbalance) = HedgeImbalance::check(
             config,

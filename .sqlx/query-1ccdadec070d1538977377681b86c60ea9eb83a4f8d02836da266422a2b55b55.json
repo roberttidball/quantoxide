@@ -6,27 +6,57 @@
       {
         "ordinal": 0,
         "name": "id",
-        "type_info": "Uuid"
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "funding_settlements",
+            "name": "id"
+          }
+        }
       },
       {
         "ordinal": 1,
         "name": "time",
-        "type_info": "Timestamptz"
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "funding_settlements",
+            "name": "time"
+          }
+        }
       },
       {
         "ordinal": 2,
         "name": "fixing_price",
-        "type_info": "Float8"
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "funding_settlements",
+            "name": "fixing_price"
+          }
+        }
       },
       {
         "ordinal": 3,
         "name": "funding_rate",
-        "type_info": "Float8"
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "funding_settlements",
+            "name": "funding_rate"
+          }
+        }
       },
       {
         "ordinal": 4,
         "name": "created_at",
-        "type_info": "Timestamptz"
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "funding_settlements",
+            "name": "created_at"
+          }
+        }
       }
     ],
     "parameters": {

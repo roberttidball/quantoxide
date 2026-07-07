@@ -6,17 +6,35 @@
       {
         "ordinal": 0,
         "name": "time",
-        "type_info": "Timestamptz"
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "price_ticks",
+            "name": "time"
+          }
+        }
       },
       {
         "ordinal": 1,
         "name": "last_price",
-        "type_info": "Float8"
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "price_ticks",
+            "name": "last_price"
+          }
+        }
       },
       {
         "ordinal": 2,
         "name": "created_at",
-        "type_info": "Timestamptz"
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "price_ticks",
+            "name": "created_at"
+          }
+        }
       }
     ],
     "parameters": {

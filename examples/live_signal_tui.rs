@@ -32,28 +32,45 @@ async fn main() -> Result<()> {
 
     let db = Database::new(&db_url).await?;
 
-    println!("Database ready. Initializing `LiveTradeEngine`...");
-
-    let evaluator = SignalEvaluatorTemplate::boxed().into_evaluator::<SupportedSignal>();
-    let operator = MultiSignalOperatorTemplate::boxed();
-
-    let live_engine = LiveTradeEngine::with_signal_operator(
-        LiveTradeConfig::default(),
-        db,
-        key,
-        secret,
-        passphrase,
-        vec![evaluator], // Multiple evaluators can run in parallel
-        operator,
-    )?;
-
-    println!("Initialization OK. Launching `LiveTui`...");
+    println!("Database ready. Launching `LiveTui`...");
 
     let live_tui = LiveTui::launch(TuiConfig::default(), None).await?;
-    live_tui.couple(live_engine).await?;
+
+    // Build the evaluator, operator, and engine after launch so they can log through `live_tui`.
+    // `until_stopped` restores the terminal before any `stdout`/`stderr` output.
+
+    let init_result = async {
+        let evaluator = SignalEvaluatorTemplate::boxed()
+            .enable_tui_logger(live_tui.as_logger())
+            .into_evaluator::<SupportedSignal>();
+        let operator = MultiSignalOperatorTemplate::boxed().enable_tui_logger(live_tui.as_logger());
+
+        let live_engine = LiveTradeEngine::with_signal_operator(
+            LiveTradeConfig::default(),
+            db,
+            key,
+            secret,
+            passphrase,
+            vec![evaluator], // Multiple evaluators can run in parallel
+            operator,
+        )?;
+
+        live_tui.couple(live_engine).await?;
+
+        Ok(())
+    }
+    .await;
+
+    if init_result.is_err() {
+        let _ = live_tui.shutdown().await;
+    }
 
     let final_status = live_tui.until_stopped().await;
-    println!("`LiveTui` status: {final_status}");
 
-    Ok(())
+    match &init_result {
+        Ok(()) => println!("`LiveTui` status: {final_status}\n"),
+        Err(error) => eprintln!("`LiveTui` initialization error: {error}\n"),
+    }
+
+    init_result
 }

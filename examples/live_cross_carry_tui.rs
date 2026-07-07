@@ -51,26 +51,42 @@ async fn main() -> Result<()> {
 
     let db = Database::new(&db_url).await?;
 
-    println!("Database ready. Initializing `LiveTradeEngine`...");
-
-    let operator = CrossCarryOperator::boxed(CrossCarryOperatorConfig::default(), hedge_perc);
-
-    let live_engine = LiveTradeEngine::with_raw_operator(
-        LiveTradeConfig::default().with_shutdown_clean_up_trades(true),
-        db,
-        key,
-        secret,
-        passphrase,
-        operator,
-    )?;
-
-    println!("Initialization OK. Launching `LiveTui`...");
+    println!("Database ready. Launching `LiveTui`...");
 
     let live_tui = LiveTui::launch(TuiConfig::default(), None).await?;
-    live_tui.couple(live_engine).await?;
+
+    // Build the operator and engine after launch so the operator can log through `live_tui`.
+    // `until_stopped` restores the terminal before any `stdout`/`stderr` output.
+
+    let init_result = async {
+        let operator = CrossCarryOperator::boxed(CrossCarryOperatorConfig::default(), hedge_perc)
+            .enable_tui_logger(live_tui.as_logger());
+
+        let live_engine = LiveTradeEngine::with_raw_operator(
+            LiveTradeConfig::default().with_shutdown_clean_up_trades(true),
+            db,
+            key,
+            secret,
+            passphrase,
+            operator,
+        )?;
+
+        live_tui.couple(live_engine).await?;
+
+        Ok(())
+    }
+    .await;
+
+    if init_result.is_err() {
+        let _ = live_tui.shutdown().await;
+    }
 
     let final_status = live_tui.until_stopped().await;
-    println!("`LiveTui` status: {final_status}");
 
-    Ok(())
+    match &init_result {
+        Ok(()) => println!("`LiveTui` status: {final_status}\n"),
+        Err(error) => eprintln!("`LiveTui` initialization error: {error}\n"),
+    }
+
+    init_result
 }

@@ -14,7 +14,7 @@ We are working with **quantoxide**, a Rust framework for developing, backtesting
    - Raw Operators: Process OHLC data and execute trades within a single component (recommended for single-strategy use cases)
    - Signal Operators: Delegate OHLC processing to Signal Evaluators, enabling multi-signal strategies or running multiple strategies in parallel
 
-2. **Synchronization** - Fetches and stores historical OHLC candle data and funding settlement data from LN Markets into PostgreSQL (required for backtesting)
+2. **Synchronization** - Fetches and stores historical OHLC candle data and funding settlement data from LN Markets into the configured local database (SQLite or PostgreSQL; required for backtesting)
    - Backfill mode: Historical data
    - Live mode: WebSocket streaming
 
@@ -99,7 +99,7 @@ Follow this workflow when helping develop a trading strategy:
 
 ### Fetch Templates
 
-**Step 1:** Get the examples README (contains all template links, PostgreSQL and environment variables setup):
+**Step 1:** Get the examples README (contains all template links, database and environment variables setup):
 ```bash
 curl https://raw.githubusercontent.com/flemosr/quantoxide/refs/heads/main/examples/README.md
 ```
@@ -182,6 +182,7 @@ Each engine has two modes:
 - Use TUI `::log` methods instead of `println!` when TUIs are running
 - Include proper error handling with `Result<()>`
 - Database schema auto-initializes on first `Database::new()` call
+- Use the crate `sqlite` feature for SQLite, or `postgres` URLs for PostgreSQL
 - The trade executor includes an internal FIFO rate limiter that automatically paces requests to stay within the LNM API's rate limits when running live — no need to implement throttling
 - **CRUCIAL:** When instructing the user to create an `.env` file, add a `.env.template` as reference and ensure `.gitignore` excludes `.env`
 

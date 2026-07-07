@@ -27,9 +27,10 @@ use util::input;
 async fn main() -> Result<()> {
     dotenv().ok();
 
+    let db_url = env::var("DATABASE_URL").map_err(|_| "`DATABASE_URL` is not set")?;
+
     println!("Initializing database...");
 
-    let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let db = Database::new(&db_url).await?;
 
     println!("Database ready. Evaluating `PriceHistoryState`...");
@@ -62,17 +63,7 @@ async fn main() -> Result<()> {
     println!("Start balance: {}", start_balance);
     println!("End date: {}\n", end_time.format("%Y-%m-%d %H:%M %Z"));
 
-    println!("Launching `BacktestTui`...");
-
-    let backtest_tui = BacktestTui::launch(TuiConfig::default(), None).await?;
-
-    // Direct `stdout`/`stderr` outputs will corrupt the TUI. Use `backtest_tui.log()` instead
-    backtest_tui
-        .log("Initializing  `BacktestEngine`...".into())
-        .await?;
-
-    // Be careful with logging in backtests. Since many iterations can be processed per second,
-    // excessive per-iteration logging can create a severe performance bottleneck.
+    println!("Initializing `BacktestEngine`...");
 
     let evaluator = SignalEvaluatorTemplate::boxed().into_evaluator::<SignalTemplate>();
     let operator = SingleSignalOperatorTemplate::boxed();
@@ -88,10 +79,12 @@ async fn main() -> Result<()> {
     )
     .await?;
 
-    backtest_tui
-        .log("Initialization OK. Coupling `BacktestEngine`...".into())
-        .await?;
+    println!("Initialization OK. Launching `BacktestTui`...");
 
+    // Be careful with logging in backtests. Since many iterations can be processed per second,
+    // excessive per-iteration logging can create a severe performance bottleneck.
+
+    let backtest_tui = BacktestTui::launch(TuiConfig::default(), None).await?;
     backtest_tui.couple(backtest_engine).await?;
 
     let final_status = backtest_tui.until_stopped().await;

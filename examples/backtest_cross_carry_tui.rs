@@ -33,9 +33,10 @@ const DEFAULT_HEDGE_PERC: f64 = 100.0;
 async fn main() -> Result<()> {
     dotenv().ok();
 
+    let db_url = env::var("DATABASE_URL").map_err(|_| "`DATABASE_URL` is not set")?;
+
     println!("Initializing database...");
 
-    let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let db = Database::new(&db_url).await?;
 
     println!("Database ready. Evaluating `PriceHistoryState`...");
@@ -77,17 +78,9 @@ async fn main() -> Result<()> {
     println!("Hedge percentage: {:.2}%", hedge_perc.as_f64());
     println!("End date: {}\n", end_time.format("%Y-%m-%d %H:%M %Z"));
 
-    println!("Launching `BacktestTui`...");
+    println!("Initializing `BacktestEngine`...");
 
-    let backtest_tui = BacktestTui::launch(TuiConfig::default(), None).await?;
-
-    // Direct `stdout`/`stderr` outputs will corrupt the TUI. Use `backtest_tui.log()` instead.
-    backtest_tui
-        .log("Initializing `BacktestEngine`...".into())
-        .await?;
-
-    let operator = CrossCarryOperator::boxed(CrossCarryOperatorConfig::default(), hedge_perc)
-        .enable_tui_logger(backtest_tui.as_logger());
+    let operator = CrossCarryOperator::boxed(CrossCarryOperatorConfig::default(), hedge_perc);
 
     let backtest_engine = BacktestEngine::with_raw_operator(
         BacktestConfig::default(),
@@ -99,10 +92,9 @@ async fn main() -> Result<()> {
     )
     .await?;
 
-    backtest_tui
-        .log("Initialization OK. Coupling `BacktestEngine`...".into())
-        .await?;
+    println!("Initialization OK. Launching `BacktestTui`...");
 
+    let backtest_tui = BacktestTui::launch(TuiConfig::default(), None).await?;
     backtest_tui.couple(backtest_engine).await?;
 
     let final_status = backtest_tui.until_stopped().await;

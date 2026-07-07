@@ -67,9 +67,10 @@ struct OperatorStats {
 async fn main() -> Result<()> {
     dotenv().ok();
 
+    let db_url = env::var("DATABASE_URL").map_err(|_| "`DATABASE_URL` is not set")?;
+
     println!("Initializing database...");
 
-    let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let db = Database::new(&db_url).await?;
 
     println!("Database ready. Evaluating `PriceHistoryState`...");

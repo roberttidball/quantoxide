@@ -1,6 +1,7 @@
 #![doc = include_str!("../README.md")]
 
 mod db;
+pub mod fxmacrodata;
 mod shared;
 /// Exports [`SignalEvaluator`] and other types related to signal evaluation.
 ///
@@ -36,6 +37,7 @@ pub use db::{
     Database, FundingSettlementsRepositoryRead, OhlcCandlesRepositoryRead,
     PriceTicksRepositoryRead, RunningTradesRepositoryRead,
 };
+pub use fxmacrodata::{FxMacroDataClient, FxMacroDataEndpoint, FxMacroDataError};
 #[cfg(feature = "postgres")]
 pub use sqlx::postgres::PgPoolOptions;
 #[cfg(feature = "sqlite")]

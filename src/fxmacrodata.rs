@@ -3,6 +3,8 @@ use std::borrow::Cow;
 use serde_json::Value;
 use thiserror::Error;
 
+pub const API_KEY_HEADER: &str = "X-API-Key";
+
 #[derive(Debug, Error)]
 pub enum FxMacroDataError {
     #[error("missing required FXMacroData field `{0}`")]
@@ -68,7 +70,7 @@ impl FxMacroDataRequest {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct FxMacroDataClient {
     base_url: String,
     api_key: Option<String>,
@@ -95,9 +97,15 @@ impl FxMacroDataClient {
     pub fn with_base_url(api_key: Option<String>, base_url: impl Into<String>) -> Self {
         Self {
             base_url: base_url.into().trim_end_matches('/').to_owned(),
-            api_key,
+            api_key: api_key.filter(|key| !key.trim().is_empty()),
             http: reqwest::Client::new(),
         }
+    }
+
+    /// Header sent with each request, or `None` when no key is set.
+    #[must_use]
+    pub fn api_key_header(&self) -> Option<(&'static str, &str)> {
+        self.api_key.as_deref().map(|key| (API_KEY_HEADER, key))
     }
 
     pub async fn request_json(
@@ -106,15 +114,17 @@ impl FxMacroDataClient {
     ) -> Result<Value, FxMacroDataError> {
         let method = self.method(&request);
         let url = self.build_url(&request)?;
-        let response = if method == "POST" {
+        let mut http = if method == "POST" {
             self.http
                 .post(url)
                 .json(&request.body.unwrap_or(Value::Null))
-                .send()
-                .await?
         } else {
-            self.http.get(url).send().await?
+            self.http.get(url)
         };
+        if let Some((name, key)) = self.api_key_header() {
+            http = http.header(name, key);
+        }
+        let response = http.send().await?;
         Ok(response.error_for_status()?.json().await?)
     }
 
@@ -172,13 +182,7 @@ impl FxMacroDataClient {
     }
 
     pub fn build_url(&self, request: &FxMacroDataRequest) -> Result<String, FxMacroDataError> {
-        let mut params = request.params.clone();
-        if let Some(api_key) = &self.api_key {
-            if !params.iter().any(|(key, _)| key == "api_key") {
-                params.push(("api_key".to_owned(), api_key.clone()));
-            }
-        }
-
+        let params = &request.params;
         let mut url = format!("{}{}", self.base_url, self.path(request)?);
         if !params.is_empty() {
             url.push('?');
@@ -291,6 +295,15 @@ impl FxMacroDataClient {
     }
 }
 
+impl std::fmt::Debug for FxMacroDataClient {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FxMacroDataClient")
+            .field("base_url", &self.base_url)
+            .field("api_key", &self.api_key.as_ref().map(|_| "<redacted>"))
+            .finish_non_exhaustive()
+    }
+}
+
 fn segment(value: &Option<String>, name: &'static str) -> Result<String, FxMacroDataError> {
     value
         .as_deref()
@@ -326,7 +339,7 @@ mod tests {
     use super::{FxMacroDataClient, FxMacroDataEndpoint, FxMacroDataRequest};
 
     #[test]
-    fn builds_authenticated_macro_urls() {
+    fn builds_macro_urls_without_key() {
         let client = FxMacroDataClient::with_base_url(
             Some("test-key".to_owned()),
             "https://api.fxmacrodata.com/v1/",
@@ -338,7 +351,17 @@ mod tests {
 
         assert_eq!(
             client.build_url(&request).unwrap(),
-            "https://api.fxmacrodata.com/v1/predictions/usd/non_farm_payrolls?limit=1&api_key=test-key"
+            "https://api.fxmacrodata.com/v1/predictions/usd/non_farm_payrolls?limit=1"
+        );
+        assert_eq!(client.api_key_header(), Some(("X-API-Key", "test-key")));
+    }
+
+    #[test]
+    fn omits_header_without_key() {
+        assert_eq!(FxMacroDataClient::new(None).api_key_header(), None);
+        assert_eq!(
+            FxMacroDataClient::new(Some(String::new())).api_key_header(),
+            None
         );
     }
 
@@ -352,7 +375,7 @@ mod tests {
 
         assert_eq!(
             client.build_url(&request).unwrap(),
-            "https://api.fxmacrodata.com/v1/rate_differentials/eur/usd?tenor=2y&api_key=test-key"
+            "https://api.fxmacrodata.com/v1/rate_differentials/eur/usd?tenor=2y"
         );
     }
 }

@@ -68,6 +68,20 @@ impl FxMacroDataRequest {
             body: None,
         }
     }
+
+    /// Select one page of a list endpoint. List endpoints return 20 rows by
+    /// default and at most 100 per request, newest first; request the next
+    /// page with the response's `pagination.next_offset` while
+    /// `pagination.has_more` is true.
+    #[must_use]
+    pub fn page(mut self, limit: u32, offset: u32) -> Self {
+        self.params
+            .retain(|(key, _)| key != "limit" && key != "offset");
+        self.params
+            .push(("limit".to_owned(), limit.clamp(1, 100).to_string()));
+        self.params.push(("offset".to_owned(), offset.to_string()));
+        self
+    }
 }
 
 #[derive(Clone)]
@@ -134,6 +148,9 @@ impl FxMacroDataClient {
         self.request_json(request).await
     }
 
+    /// Returns the first page (20 rows, newest first). For more rows or older
+    /// pages, send the request through [`Self::request_json`] with
+    /// [`FxMacroDataRequest::page`].
     pub async fn announcements(
         &self,
         currency: &str,
@@ -157,6 +174,9 @@ impl FxMacroDataClient {
         self.request_json(request).await
     }
 
+    /// Returns the first page (20 rows, newest first). For more rows or older
+    /// pages, send the request through [`Self::request_json`] with
+    /// [`FxMacroDataRequest::page`].
     pub async fn predictions(
         &self,
         currency: &str,
@@ -168,6 +188,9 @@ impl FxMacroDataClient {
         self.request_json(request).await
     }
 
+    /// Returns the first page (20 rows, newest first). For more rows or older
+    /// pages, send the request through [`Self::request_json`] with
+    /// [`FxMacroDataRequest::page`].
     pub async fn forex(&self, base: &str, quote: &str) -> Result<Value, FxMacroDataError> {
         let mut request = FxMacroDataRequest::new(FxMacroDataEndpoint::Forex);
         request.base = Some(base.to_owned());
@@ -354,6 +377,20 @@ mod tests {
             "https://api.fxmacrodata.com/v1/predictions/usd/non_farm_payrolls?limit=1"
         );
         assert_eq!(client.api_key_header(), Some(("X-API-Key", "test-key")));
+    }
+
+    #[test]
+    fn page_sets_limit_and_offset() {
+        let client = FxMacroDataClient::new(None);
+        let mut request = FxMacroDataRequest::new(FxMacroDataEndpoint::Forex);
+        request.base = Some("EUR".to_owned());
+        request.quote = Some("USD".to_owned());
+        let request = request.page(500, 200);
+
+        assert_eq!(
+            client.build_url(&request).unwrap(),
+            "https://api.fxmacrodata.com/v1/forex/eur/usd?limit=100&offset=200"
+        );
     }
 
     #[test]
